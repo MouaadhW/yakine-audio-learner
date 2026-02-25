@@ -18,9 +18,9 @@ export const HeaderLogo = (props: HeaderTitleProps) => {
       /> */}
       <Text style={{ ...styles.title, color: colors.text }}>
         <Text style={{ ...styles.title, fontSize: 30, color: colors.primary }}>
-          H
+          Y
         </Text>
-        ope
+        akine
       </Text>
 
       {/* <Image

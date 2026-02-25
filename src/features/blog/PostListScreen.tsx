@@ -3,31 +3,31 @@ import { Divider, ListDivider } from '@/components/ui/Divider';
 import { ErrorView } from '@/components/ui/ErrorView';
 import { Loading } from '@/components/ui/Loading';
 import { useAppSelector, useResetInfiniteQuery } from '@/lib/hooks';
+import { samplePostPage } from '@/lib/mockData';
 import { Page, Post } from '@/lib/models';
 import { getPosts } from '@/lib/services/BlogApi';
 import { RootStackParamList } from '@/navigations';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import React, { useEffect } from 'react';
+import { useInfiniteQuery } from '@tanstack/react-query';
+import React, { useEffect, useRef } from 'react';
 import {
   FlatList,
   InteractionManager,
   ListRenderItemInfo,
   RefreshControl,
-  SafeAreaView,
   StyleSheet,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { selectTheme } from '../themeSlice';
 
 const PostListScreen = () => {
+  const hasRequestedRef = useRef(false);
   const { colors } = useAppSelector(selectTheme);
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
-  const queryClient = useQueryClient();
 
   const {
     data,
@@ -64,6 +64,12 @@ const PostListScreen = () => {
   // }, [navigation]);
 
   useEffect(() => {
+    if (hasRequestedRef.current) {
+      return;
+    }
+
+    hasRequestedRef.current = true;
+
     const interactionPromise = InteractionManager.runAfterInteractions(() => {
       refetch();
     });
@@ -82,27 +88,54 @@ const PostListScreen = () => {
       return <Loading />;
     }
 
+    const pages =
+      data?.pages && data.pages.length > 0
+        ? data.pages
+        : [samplePostPage as Page<Post>];
+
     if (error && isLoadingError) {
       return (
-        <ErrorView
-          error={error}
-          action={() => {
-            refetch();
-          }}
+        <FlatList
+          data={samplePostPage.contents}
+          renderItem={renderItem}
+          keyExtractor={item => item.id.toString()}
+          refreshControl={
+            <RefreshControl
+              refreshing={isFetching && !isFetchingNextPage}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+              onRefresh={() => {
+                resetQuery();
+                refetch();
+              }}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={ListDivider}
+          ListHeaderComponent={
+            <View style={{ padding: 12 }}>
+              <ErrorView
+                error={error}
+                action={() => {
+                  refetch();
+                }}
+              />
+            </View>
+          }
         />
       );
     }
 
     return (
       <FlatList
-        data={data.pages.flatMap(d => d.contents)}
+        data={pages.flatMap(d => d.contents)}
         renderItem={renderItem}
         keyExtractor={item => item.id.toString()}
         refreshControl={
           <RefreshControl
             refreshing={isFetching && !isFetchingNextPage}
             colors={[colors.primary]}
-            tintColor={'gray'}
+            tintColor={colors.primary}
             onRefresh={() => {
               resetQuery();
               refetch();
@@ -113,7 +146,7 @@ const PostListScreen = () => {
         ItemSeparatorComponent={ListDivider}
         ListFooterComponent={
           <>
-            {data.pages.length > 0 && (
+            {pages.length > 0 && (
               <Divider orientation="horizontal" stroke={0.8} />
             )}
             {isFetchingNextPage && <Loading size={36} />}

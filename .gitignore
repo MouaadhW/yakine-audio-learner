@@ -76,3 +76,10 @@ yarn-error.log
 .vscode
 
 .env
+# Expo
+.expo
+.expo-shared
+.expo-export-check/
+.eas/
+dist/
+web-build/

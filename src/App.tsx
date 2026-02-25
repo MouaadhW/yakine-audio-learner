@@ -46,6 +46,12 @@ const queryClient = new QueryClient({
 
 const App = () => {
   useEffect(() => {
+    const setupAppServices = async () => {
+      return;
+    };
+
+    void setupAppServices();
+
     let appState = AppState.currentState;
 
     const subscription = AppState.addEventListener(

@@ -2,7 +2,6 @@ import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
 import { useIsFocused } from '@react-navigation/native';
 import { StatusBar } from 'react-native';
-import { Colors } from 'react-native/Libraries/NewAppScreen';
 
 interface CustomStatusBarProps {
   style?: 'light' | 'dark';
@@ -10,10 +9,10 @@ interface CustomStatusBarProps {
 
 export const CustomStatusBar = ({ style }: CustomStatusBarProps) => {
   const isFocused = useIsFocused();
-  const { dark } = useAppSelector(selectTheme);
+  const { dark, colors } = useAppSelector(selectTheme);
 
   const backgroundStyle = {
-    backgroundColor: dark ? 'transparent' : Colors.lighter,
+    backgroundColor: dark ? 'transparent' : colors.background,
   };
 
   if (!isFocused) {
@@ -24,7 +23,7 @@ export const CustomStatusBar = ({ style }: CustomStatusBarProps) => {
     return (
       <StatusBar
         barStyle={'light-content'}
-        backgroundColor={Colors.darker}
+        backgroundColor={colors.card}
         translucent={true}
       />
     );
@@ -34,7 +33,7 @@ export const CustomStatusBar = ({ style }: CustomStatusBarProps) => {
     return (
       <StatusBar
         barStyle={'dark-content'}
-        backgroundColor={Colors.lighter}
+        backgroundColor={colors.background}
         translucent={true}
       />
     );

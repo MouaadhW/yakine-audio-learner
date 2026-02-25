@@ -7,6 +7,7 @@ import { Loading } from '@/components/ui/Loading';
 import { Spacer } from '@/components/ui/Spacer';
 import { Text } from '@/components/ui/Text';
 import { useAppSelector } from '@/lib/hooks';
+import { sampleCategoryPage, sampleCoursePage, samplePostPage } from '@/lib/mockData';
 import { Course, Post } from '@/lib/models';
 import { getPosts } from '@/lib/services/BlogApi';
 import { getCategories } from '@/lib/services/CategoryApi';
@@ -18,7 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { SearchIcon } from 'lucide-react-native';
 import type { PropsWithChildren } from 'react';
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   FlatList,
   InteractionManager,
@@ -97,6 +98,7 @@ const Heading = ({ title, seeAll }: HeadingProps) => {
 };
 
 const HomeScreen = () => {
+  const hasRequestedRef = useRef(false);
   const { colors } = useAppSelector(selectTheme);
 
   const rootNavigation =
@@ -117,14 +119,20 @@ const HomeScreen = () => {
     });
 
   useEffect(() => {
+    if (hasRequestedRef.current) {
+      return;
+    }
+
+    hasRequestedRef.current = true;
+
     const interactionPromise = InteractionManager.runAfterInteractions(() => {
-      isPending && refetch();
+      refetch();
     });
 
     return () => {
       interactionPromise.cancel();
     };
-  }, [refetch, isPending]);
+  }, [refetch]);
 
   const renderCourseItem = (info: ListRenderItemInfo<Course>) => {
     return <TopCourseItem value={info.item} />;
@@ -141,18 +149,15 @@ const HomeScreen = () => {
       return <Loading />;
     }
 
-    if (error && isLoadingError) {
-      return (
-        <ErrorView
-          error={error}
-          action={() => {
-            refetch();
-          }}
-        />
-      );
-    }
+    const homeData = data ?? [sampleCategoryPage, sampleCoursePage, samplePostPage];
+    const [homeCategories, homeCourses, homePosts] = homeData;
+    const showOfflineNotice = !!error && isLoadingError;
 
-    const [categories, courses, posts] = data;
+    const categories =
+      homeCategories.contents.length > 0 ? homeCategories : sampleCategoryPage;
+    const courses =
+      homeCourses.contents.length > 0 ? homeCourses : sampleCoursePage;
+    const posts = homePosts.contents.length > 0 ? homePosts : samplePostPage;
 
     return (
       <ScrollView
@@ -162,7 +167,7 @@ const HomeScreen = () => {
           <RefreshControl
             refreshing={isFetching}
             colors={[colors.primary]}
-            tintColor={'gray'}
+            tintColor={colors.primary}
             onRefresh={() => {
               refetch();
             }}
@@ -176,6 +181,15 @@ const HomeScreen = () => {
             }}>
             What do you want to learn?
           </Text>
+
+          {showOfflineNotice && (
+            <>
+              <Spacer orientation="vertical" spacing={8} />
+              <Text style={{ color: colors.muted }}>
+                You are offline. Showing sample content.
+              </Text>
+            </>
+          )}
 
           <Spacer orientation="vertical" spacing={10} />
 

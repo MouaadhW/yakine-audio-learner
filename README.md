@@ -1,4 +1,4 @@
-# Hope Elearning Mobile
+# Yakine Audio Learner
 
 E-learning mobile app project build with [**React Native**](https://reactnative.dev), bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
