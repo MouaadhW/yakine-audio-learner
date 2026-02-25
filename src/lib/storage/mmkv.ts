@@ -1,8 +1,9 @@
+import { MMKV_ENCRYPTION_KEY } from '@env';
 import { createMMKV } from 'react-native-mmkv';
 
 export const storage = createMMKV({
   id: 'yakine-audio-learner',
-  encryptionKey: 'yakine-audio-learner-mmkv-v1',
+  encryptionKey: MMKV_ENCRYPTION_KEY,
 });
 
 export const storageKeys = {

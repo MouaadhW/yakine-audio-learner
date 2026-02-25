@@ -29,7 +29,7 @@ export const downloadLessonAudio = (
       discretionary: true,
       progressDivider: 1,
       progress: ({ bytesWritten, contentLength }) => {
-        if (contentLength > 0) {
+        if (contentLength > 0 && bytesWritten >= 0) {
           onProgress?.(Math.min(1, bytesWritten / contentLength));
         }
       },
@@ -37,7 +37,9 @@ export const downloadLessonAudio = (
 
     const result = await task.promise;
     if (result.statusCode < 200 || result.statusCode >= 300) {
-      throw new Error(`Download failed with status ${result.statusCode}`);
+      throw new Error(
+        `Download failed for lesson ${lesson.id} with status ${result.statusCode}`,
+      );
     }
     return { localPath: toFile, jobId: task.jobId };
   };

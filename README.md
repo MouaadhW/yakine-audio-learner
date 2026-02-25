@@ -28,6 +28,7 @@ Required `.env` file properties.
 
 ```ini
 API_URL= # backend api url
+MMKV_ENCRYPTION_KEY= # random key for encrypted local metadata storage
 ```
 
 ## Step 1: Start the Metro Server

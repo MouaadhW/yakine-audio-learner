@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LessonList'>;
+const PROGRESS_UPDATE_BUCKETS = 20;
 
 const formatDuration = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -47,45 +48,46 @@ const LessonListScreen = ({ route, navigation }: Props) => {
     [chapterId, downloadMap],
   );
 
+  const updateDownloadState = (
+    lessonId: string,
+    patch: Parameters<typeof upsertLessonDownloadMetadata>[1],
+  ) => {
+    setDownloadMap(current => ({
+      ...current,
+      [lessonId]: upsertLessonDownloadMetadata(lessonId, patch),
+    }));
+  };
+
   const handleDownload = async (item: BACLesson) => {
     if (downloadMap[item.id]?.status === 'downloading') {
       return;
     }
-    setDownloadMap(current => ({
-      ...current,
-      [item.id]: upsertLessonDownloadMetadata(item.id, {
-        status: 'downloading',
-        progress: 0,
-      }),
-    }));
+    updateDownloadState(item.id, { status: 'downloading', progress: 0 });
 
     try {
+      let lastProgressBucket = 0;
       const task = downloadLessonAudio(item, progress => {
-        setDownloadMap(current => ({
-          ...current,
-          [item.id]: upsertLessonDownloadMetadata(item.id, {
+        const nextBucket = Math.floor(progress * PROGRESS_UPDATE_BUCKETS);
+        if (nextBucket !== lastProgressBucket || progress >= 1) {
+          lastProgressBucket = nextBucket;
+          updateDownloadState(item.id, {
             status: 'downloading',
             progress,
-          }),
-        }));
+          });
+        }
       });
       const { localPath } = await task.start();
-      setDownloadMap(current => ({
-        ...current,
-        [item.id]: upsertLessonDownloadMetadata(item.id, {
-          status: 'downloaded',
-          progress: 1,
-          localPath,
-        }),
-      }));
-    } catch {
-      setDownloadMap(current => ({
-        ...current,
-        [item.id]: upsertLessonDownloadMetadata(item.id, {
-          status: 'failed',
-          progress: 0,
-        }),
-      }));
+      updateDownloadState(item.id, {
+        status: 'downloaded',
+        progress: 1,
+        localPath,
+      });
+    } catch (error) {
+      console.error('Lesson download failed', item.id, error);
+      updateDownloadState(item.id, {
+        status: 'failed',
+        progress: 0,
+      });
     }
   };
 
