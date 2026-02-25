@@ -56,27 +56,41 @@ export async function makeApiRequest({
     if (response.status === 401) {
       const refreshToken = mmkv.getString(storageKeys.refreshToken);
       if (refreshToken) {
-        const refreshResponse = await fetch(`${API_URL}/api/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-          signal: timeoutController.signal,
-        });
-        if (refreshResponse.ok) {
-          const tokens = await refreshResponse.json();
-          mmkv.setString(storageKeys.accessToken, tokens.accessToken);
-          mmkv.setString(storageKeys.refreshToken, tokens.refreshToken);
-          // retry original request with new access token
-          const retryOptions: RequestInit = {
-            ...options,
-            signal: timeoutController.signal,
-            headers: {
-              ...options.headers,
-              Authorization: `Bearer ${tokens.accessToken}`,
-            },
-          };
-          const retryResponse = await fetch(requestUrl, retryOptions);
-          return retryResponse;
+        try {
+          const refreshController = new AbortController();
+          const refreshTimeoutId = setTimeout(() => {
+            refreshController.abort();
+          }, timeoutMs);
+          try {
+            const refreshResponse = await fetch(`${API_URL}/api/auth/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+              signal: refreshController.signal,
+            });
+            if (refreshResponse.ok) {
+              const tokens = await refreshResponse.json();
+              if (tokens.accessToken && tokens.refreshToken) {
+                mmkv.setString(storageKeys.accessToken, tokens.accessToken);
+                mmkv.setString(storageKeys.refreshToken, tokens.refreshToken);
+                // retry original request with new access token
+                const retryOptions: RequestInit = {
+                  ...options,
+                  signal: timeoutController.signal,
+                  headers: {
+                    ...options.headers,
+                    Authorization: `Bearer ${tokens.accessToken}`,
+                  },
+                };
+                const retryResponse = await fetch(requestUrl, retryOptions);
+                return retryResponse;
+              }
+            }
+          } finally {
+            clearTimeout(refreshTimeoutId);
+          }
+        } catch {
+          // refresh failed, return original 401 response
         }
       }
     }

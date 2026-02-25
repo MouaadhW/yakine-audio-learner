@@ -23,9 +23,9 @@ export function signRefreshToken(payload: JwtPayload): string {
     expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions['expiresIn']
   };
 
-  return jwt.sign(payload, env.JWT_SECRET, options);
+  return jwt.sign(payload, env.REFRESH_TOKEN_SECRET, options);
 }
 
 export function verifyRefreshToken(token: string): JwtPayload {
-  return jwt.verify(token, env.JWT_SECRET) as JwtPayload;
+  return jwt.verify(token, env.REFRESH_TOKEN_SECRET) as JwtPayload;
 }
