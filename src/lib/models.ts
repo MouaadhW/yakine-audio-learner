@@ -51,6 +51,8 @@ export interface BACLesson {
   chapter?: BACChapter;
   completed?: boolean;
   downloadedPath?: string;
+  downloadStatus?: 'not_downloaded' | 'downloading' | 'downloaded' | 'failed';
+  downloadProgress?: number;
 }
 
 export interface AudioPlayerState {

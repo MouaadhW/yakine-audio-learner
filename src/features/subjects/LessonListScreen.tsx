@@ -2,10 +2,16 @@ import { Text } from '@/components/ui/Text';
 import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
 import { BACLesson } from '@/lib/models';
+import { downloadLessonAudio } from '@/lib/audio/downloadService';
 import { bacLessons } from '@/lib/mockData';
+import {
+  getAllLessonDownloadMetadata,
+  upsertLessonDownloadMetadata,
+} from '@/lib/storage/downloadMetadata';
 import { RootStackParamList } from '@/navigations';
-import { CheckCircleIcon, PlayCircleIcon } from 'lucide-react-native';
+import { CheckCircleIcon, DownloadIcon, PlayCircleIcon } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -22,8 +28,79 @@ const LessonListScreen = ({ route, navigation }: Props) => {
   const { colors } = useAppSelector(selectTheme);
   const { i18n } = useTranslation();
   const isFr = i18n.language === 'fr';
+  const [downloadMap, setDownloadMap] = useState(getAllLessonDownloadMetadata());
 
-  const lessons = bacLessons.filter(l => l.chapterId === chapterId);
+  const lessons = useMemo(
+    () =>
+      bacLessons
+        .filter(l => l.chapterId === chapterId)
+        .map(lesson => {
+          const metadata = downloadMap[lesson.id];
+          return {
+            ...lesson,
+            downloadedPath:
+              metadata?.status === 'downloaded' ? metadata.localPath : undefined,
+            downloadStatus: metadata?.status ?? 'not_downloaded',
+            downloadProgress: metadata?.progress ?? 0,
+          };
+        }),
+    [chapterId, downloadMap],
+  );
+
+  const handleDownload = async (item: BACLesson) => {
+    if (downloadMap[item.id]?.status === 'downloading') {
+      return;
+    }
+    setDownloadMap(current => ({
+      ...current,
+      [item.id]: upsertLessonDownloadMetadata(item.id, {
+        status: 'downloading',
+        progress: 0,
+      }),
+    }));
+
+    try {
+      const task = downloadLessonAudio(item, progress => {
+        setDownloadMap(current => ({
+          ...current,
+          [item.id]: upsertLessonDownloadMetadata(item.id, {
+            status: 'downloading',
+            progress,
+          }),
+        }));
+      });
+      const { localPath } = await task.start();
+      setDownloadMap(current => ({
+        ...current,
+        [item.id]: upsertLessonDownloadMetadata(item.id, {
+          status: 'downloaded',
+          progress: 1,
+          localPath,
+        }),
+      }));
+    } catch {
+      setDownloadMap(current => ({
+        ...current,
+        [item.id]: upsertLessonDownloadMetadata(item.id, {
+          status: 'failed',
+          progress: 0,
+        }),
+      }));
+    }
+  };
+
+  const getStatusLabel = (item: BACLesson) => {
+    if (item.downloadStatus === 'downloaded') {
+      return isFr ? 'Téléchargé' : 'Downloaded';
+    }
+    if (item.downloadStatus === 'downloading') {
+      return `${Math.round((item.downloadProgress ?? 0) * 100)}%`;
+    }
+    if (item.downloadStatus === 'failed') {
+      return isFr ? 'Échec' : 'Failed';
+    }
+    return isFr ? 'En ligne' : 'Online';
+  };
 
   const renderItem = ({ item }: { item: BACLesson }) => (
     <TouchableOpacity
@@ -44,8 +121,41 @@ const LessonListScreen = ({ route, navigation }: Props) => {
         <Text style={[styles.meta, { color: 'gray' }]}>
           🎙️ {item.teacherName} • ⏱️ {formatDuration(item.duration)}
         </Text>
+        <Text style={[styles.status, { color: colors.primary }]}>
+          {getStatusLabel(item)}
+        </Text>
+        {item.downloadStatus === 'downloading' && (
+          <View style={[styles.downloadProgressTrack, { backgroundColor: colors.border }]}>
+            <View
+              style={[
+                styles.downloadProgressFill,
+                {
+                  width: `${Math.round((item.downloadProgress ?? 0) * 100)}%`,
+                  backgroundColor: colors.primary,
+                },
+              ]}
+            />
+          </View>
+        )}
       </View>
-      {item.downloadedPath && <Text style={styles.downloadBadge}>📥</Text>}
+      <TouchableOpacity
+        style={styles.downloadAction}
+        onPress={event => {
+          event.stopPropagation();
+          if (!item.downloadedPath) {
+            handleDownload(item);
+          }
+        }}
+        disabled={item.downloadStatus === 'downloading' || !!item.downloadedPath}>
+        {item.downloadedPath ? (
+          <Text style={styles.downloadBadge}>📥</Text>
+        ) : (
+          <DownloadIcon
+            size={18}
+            color={item.downloadStatus === 'downloading' ? 'gray' : colors.primary}
+          />
+        )}
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 
@@ -73,6 +183,15 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1 },
   title: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
   meta: { fontSize: 12 },
+  status: { fontSize: 12, marginTop: 4, fontWeight: '600' },
+  downloadProgressTrack: {
+    marginTop: 6,
+    width: '100%',
+    height: 4,
+    borderRadius: 2,
+  },
+  downloadProgressFill: { height: 4, borderRadius: 2 },
+  downloadAction: { padding: 6 },
   downloadBadge: { fontSize: 18 },
 });
 

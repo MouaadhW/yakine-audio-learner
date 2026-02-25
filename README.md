@@ -14,6 +14,7 @@ E-learning mobile app project build with [**React Native**](https://reactnative.
 	<li>- [x] User Management</li>
 	<li>- [x] AI powered content editor</li>
 	<li>- [x] Dark mode support</li>
+	<li>- [x] Offline lesson downloads with local playback</li>
 	<li>- [ ] Subscription</li>
 </ul>
 
