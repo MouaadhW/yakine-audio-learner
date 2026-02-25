@@ -19,10 +19,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
 import { SearchIcon } from 'lucide-react-native';
 import type { PropsWithChildren } from 'react';
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   FlatList,
-  InteractionManager,
   ListRenderItemInfo,
   RefreshControl,
   ScrollView,
@@ -69,6 +69,7 @@ type HeadingProps = PropsWithChildren<{
 
 const Heading = ({ title, seeAll }: HeadingProps) => {
   const { colors } = useAppSelector(selectTheme);
+  const { t } = useTranslation();
 
   return (
     <View style={styles.headingContainer}>
@@ -89,7 +90,7 @@ const Heading = ({ title, seeAll }: HeadingProps) => {
               color: colors.primary,
               ...DefaultStyles.fonts.medium,
             }}>
-            See all
+            {t('seeAll')}
           </Text>
         </TouchableOpacity>
       )}
@@ -98,8 +99,8 @@ const Heading = ({ title, seeAll }: HeadingProps) => {
 };
 
 const HomeScreen = () => {
-  const hasRequestedRef = useRef(false);
   const { colors } = useAppSelector(selectTheme);
+  const { t } = useTranslation();
 
   const rootNavigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -111,28 +112,11 @@ const HomeScreen = () => {
     backgroundColor: colors.background,
   };
 
-  const { data, error, isPending, isFetching, isLoadingError, refetch } =
-    useQuery({
-      queryKey: ['/content/home'],
-      queryFn: ({ signal }) => fetchHomeData(signal),
-      enabled: false,
-    });
-
-  useEffect(() => {
-    if (hasRequestedRef.current) {
-      return;
-    }
-
-    hasRequestedRef.current = true;
-
-    const interactionPromise = InteractionManager.runAfterInteractions(() => {
-      refetch();
-    });
-
-    return () => {
-      interactionPromise.cancel();
-    };
-  }, [refetch]);
+  const { data, error, isFetching, isLoadingError, refetch } = useQuery({
+    queryKey: ['/content/home'],
+    queryFn: ({ signal }) => fetchHomeData(signal),
+    placeholderData: [sampleCategoryPage, sampleCoursePage, samplePostPage],
+  });
 
   const renderCourseItem = (info: ListRenderItemInfo<Course>) => {
     return <TopCourseItem value={info.item} />;
@@ -145,10 +129,6 @@ const HomeScreen = () => {
   const listItemSeparator = () => <View style={{ width: 10 }} />;
 
   const content = () => {
-    if (isPending) {
-      return <Loading />;
-    }
-
     const homeData = data ?? [sampleCategoryPage, sampleCoursePage, samplePostPage];
     const [homeCategories, homeCourses, homePosts] = homeData;
     const showOfflineNotice = !!error && isLoadingError;
@@ -179,14 +159,14 @@ const HomeScreen = () => {
               ...styles.searchTitle,
               color: colors.text,
             }}>
-            What do you want to learn?
+            {t('whatDoYouWantToLearn')}
           </Text>
 
           {showOfflineNotice && (
             <>
               <Spacer orientation="vertical" spacing={8} />
               <Text style={{ color: colors.muted }}>
-                You are offline. Showing sample content.
+                {t('offlineNotice')}
               </Text>
             </>
           )}
@@ -205,7 +185,7 @@ const HomeScreen = () => {
               <TextInput
                 style={{ ...styles.searchInput }}
                 placeholderTextColor={'dimgray'}
-                placeholder="Browse courses..."
+                placeholder={t('browseCourses')}
                 readOnly
                 pointerEvents="none"
               />
@@ -214,7 +194,7 @@ const HomeScreen = () => {
 
           <Spacer orientation="vertical" spacing={24} />
 
-          <Heading title="Categories" seeAll={() => {}} />
+          <Heading title={t('categories')} seeAll={() => {}} />
 
           <Spacer orientation="vertical" spacing={12} />
 
@@ -227,7 +207,7 @@ const HomeScreen = () => {
           <Spacer orientation="vertical" spacing={24} />
 
           <Heading
-            title="Top courses"
+              title={t('topCourses')}
             seeAll={() => {
               rootNavigation.navigate('CourseList');
             }}
@@ -247,7 +227,7 @@ const HomeScreen = () => {
           <Spacer orientation="vertical" spacing={24} />
 
           <Heading
-            title="Recent posts"
+              title={t('recentPosts')}
             seeAll={() => {
               tabNavigation.navigate('Blogs');
             }}

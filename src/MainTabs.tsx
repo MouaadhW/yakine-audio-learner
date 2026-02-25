@@ -13,6 +13,7 @@ import {
   UserIcon as UserSolidIcon,
 } from 'react-native-heroicons/solid';
 import { HeaderButtons, Item } from 'react-navigation-header-buttons';
+import { useTranslation } from 'react-i18next';
 import { DefaultStyles } from './components/styles';
 import { HeaderLogo } from './components/ui/HeaderLogo';
 import PostListHeaderRight from './features/blog/PostListHeaderRight';
@@ -29,6 +30,7 @@ const Tab = createBottomTabNavigator<BottomTabParamList>();
 const MainTabs = () => {
   const dispatch = useAppDispatch();
   const { dark, colors } = useAppSelector(selectTheme);
+  const { t } = useTranslation();
 
   return (
     <Tab.Navigator
@@ -46,6 +48,7 @@ const MainTabs = () => {
         name="Home"
         component={HomeScreen}
         options={{
+          title: t('home'),
           headerTitleAlign: 'left',
           headerTitle: props => <HeaderLogo {...props} />,
           tabBarIcon: props => {
@@ -83,6 +86,7 @@ const MainTabs = () => {
         name="Blogs"
         component={PostListScreen}
         options={{
+          title: t('blogs'),
           tabBarIcon: props => {
             if (props.focused) {
               return <NewspaperSolidIcon {...props} />;
@@ -96,7 +100,8 @@ const MainTabs = () => {
         name="Learnings"
         component={MyCoursesScreen}
         options={{
-          headerTitle: 'My Courses',
+          title: t('library'),
+          headerTitle: t('library'),
           tabBarIcon: props => {
             if (props.focused) {
               return <BookOpenSolidIcon {...props} />;
@@ -109,6 +114,7 @@ const MainTabs = () => {
         name="Profile"
         component={ProfileScreen}
         options={{
+          title: t('profile'),
           tabBarIcon: props => {
             if (props.focused) {
               return <UserSolidIcon {...props} />;

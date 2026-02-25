@@ -35,6 +35,12 @@ export async function makeApiRequest({
     signal: timeoutController.signal,
   };
 
+  if (!API_URL || API_URL.trim() === '') {
+    throw new Error(
+      'API_URL is not configured. Please set it in your .env file.',
+    );
+  }
+
   const requestUrl = `${API_URL}${url}`;
   // console.log(requestUrl);
 

@@ -1,0 +1,23 @@
+export default {
+  home: 'Home',
+  blogs: 'Blogs',
+  courses: 'Lessons',
+  library: 'My Library',
+  profile: 'Profile',
+  seeAll: 'See all',
+  whatDoYouWantToLearn: 'What do you want to learn?',
+  browseCourses: 'Browse courses...',
+  categories: 'Categories',
+  topCourses: 'Top courses',
+  recentPosts: 'Recent posts',
+  offlineNotice: 'You are offline. Showing sample content.',
+  noEnrolledCourses: 'No enrolled courses yet.',
+  profileComingSoon: 'Profile details will appear here.',
+  language: 'Language',
+  english: 'English',
+  french: 'Français',
+  appearance: 'Appearance',
+  lightMode: 'Light',
+  darkMode: 'Dark',
+  systemMode: 'System'
+};

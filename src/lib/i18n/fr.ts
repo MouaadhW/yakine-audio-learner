@@ -1,0 +1,23 @@
+export default {
+  home: 'Accueil',
+  blogs: 'Articles',
+  courses: 'Cours',
+  library: 'Ma Bibliothèque',
+  profile: 'Profil',
+  seeAll: 'Voir tout',
+  whatDoYouWantToLearn: 'Que voulez-vous apprendre ?',
+  browseCourses: 'Parcourir les cours...',
+  categories: 'Catégories',
+  topCourses: 'Meilleurs cours',
+  recentPosts: 'Articles récents',
+  offlineNotice: 'Vous êtes hors ligne. Contenu d’exemple affiché.',
+  noEnrolledCourses: 'Aucun cours inscrit pour le moment.',
+  profileComingSoon: 'Les détails du profil apparaîtront ici.',
+  language: 'Langue',
+  english: 'English',
+  french: 'Français',
+  appearance: 'Apparence',
+  lightMode: 'Clair',
+  darkMode: 'Sombre',
+  systemMode: 'Système'
+};

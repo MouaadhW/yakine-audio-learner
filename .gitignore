@@ -83,3 +83,10 @@ yarn-error.log
 .eas/
 dist/
 web-build/
+
+# Backend
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/prisma/*.db
+backend/prisma/*.db-journal

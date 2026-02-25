@@ -73,8 +73,12 @@ const App = () => {
 
     onlineManager.setEventListener(setOnline => {
       return addEventListener(nextState => {
-        setOnline(!!nextState.isConnected);
-        console.log(nextState.isConnected ? 'connected' : 'disconnected');
+        const isOnline =
+          nextState.isConnected === true &&
+          nextState.isInternetReachable !== false;
+
+        setOnline(isOnline);
+        console.log(isOnline ? 'connected' : 'disconnected');
       });
     });
 

@@ -10,10 +10,9 @@ import { RootStackParamList } from '@/navigations';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import {
   FlatList,
-  InteractionManager,
   ListRenderItemInfo,
   RefreshControl,
   StyleSheet,
@@ -23,7 +22,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { selectTheme } from '../themeSlice';
 
 const PostListScreen = () => {
-  const hasRequestedRef = useRef(false);
   const { colors } = useAppSelector(selectTheme);
 
   const navigation =
@@ -36,16 +34,18 @@ const PostListScreen = () => {
     hasNextPage,
     isFetching,
     isFetchingNextPage,
-    isPending,
     isFetchNextPageError,
     isLoadingError,
     refetch,
   } = useInfiniteQuery({
     queryKey: ['/content/posts'],
     initialPageParam: 1,
-    enabled: false,
     queryFn: ({ queryKey, pageParam, signal }) => {
       return getPosts({ page: pageParam, limit: 15 }, signal);
+    },
+    initialData: {
+      pages: [samplePostPage],
+      pageParams: [1],
     },
     getNextPageParam: (lastPage, pages) => {
       if (lastPage.currentPage === lastPage.totalPage) {
@@ -63,31 +63,11 @@ const PostListScreen = () => {
   //   });
   // }, [navigation]);
 
-  useEffect(() => {
-    if (hasRequestedRef.current) {
-      return;
-    }
-
-    hasRequestedRef.current = true;
-
-    const interactionPromise = InteractionManager.runAfterInteractions(() => {
-      refetch();
-    });
-
-    return () => {
-      interactionPromise.cancel();
-    };
-  }, [refetch]);
-
   const renderItem = (info: ListRenderItemInfo<Post>) => {
     return <PostListItem value={info.item} />;
   };
 
   const content = () => {
-    if (isPending) {
-      return <Loading />;
-    }
-
     const pages =
       data?.pages && data.pages.length > 0
         ? data.pages
