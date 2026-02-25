@@ -16,11 +16,10 @@ import { HeaderButtons, Item } from 'react-navigation-header-buttons';
 import { useTranslation } from 'react-i18next';
 import { DefaultStyles } from './components/styles';
 import { HeaderLogo } from './components/ui/HeaderLogo';
-import PostListHeaderRight from './features/blog/PostListHeaderRight';
-import PostListScreen from './features/blog/PostListScreen';
 import HomeScreen from './features/home/HomeScreen';
 import MyCoursesScreen from './features/learning/MyCoursesScreen';
 import ProfileScreen from './features/profile/ProfileScreen';
+import SubjectListScreen from './features/subjects/SubjectListScreen';
 import { selectTheme, setDarkMode, setLightMode } from './features/themeSlice';
 import { useAppDispatch, useAppSelector } from './lib/hooks';
 import { BottomTabParamList } from './navigations';
@@ -83,17 +82,16 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Blogs"
-        component={PostListScreen}
+        name="Subjects"
+        component={SubjectListScreen}
         options={{
-          title: t('blogs'),
+          title: 'Subjects',
           tabBarIcon: props => {
             if (props.focused) {
               return <NewspaperSolidIcon {...props} />;
             }
             return <NewspaperIcon {...props} />;
           },
-          headerRight: PostListHeaderRight,
         }}
       />
       <Tab.Screen

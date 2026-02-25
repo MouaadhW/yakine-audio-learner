@@ -4,8 +4,63 @@ export type PostVisibility = 'public' | 'member' | 'paid_member';
 export type CourseStatus = 'draft' | 'published';
 export type CourseLevel = 'beginner' | 'intermediate' | 'advanced';
 export type CourseAccess = 'free' | 'premium';
-export type LessonType = 'text' | 'video' | 'quiz';
+export type LessonType = 'text' | 'video' | 'quiz' | 'audio';
 export type QuizType = 'multiple_choice' | 'single_choice' | 'short_answer';
+
+export type BACStream =
+  | 'scientific'
+  | 'literary'
+  | 'economic'
+  | 'technical'
+  | 'all';
+
+export interface BACSubject {
+  id: string;
+  slugEn: string;
+  slugFr: string;
+  nameEn: string;
+  nameFr: string;
+  stream: BACStream;
+  icon?: string;
+  color?: string;
+  chapters?: BACChapter[];
+}
+
+export interface BACChapter {
+  id: string;
+  nameEn: string;
+  nameFr: string;
+  sortOrder: number;
+  subjectId: string;
+  subject?: BACSubject;
+  lessons?: BACLesson[];
+}
+
+export interface BACLesson {
+  id: string;
+  titleEn: string;
+  titleFr: string;
+  audioUrl: string;
+  scriptEn: string;
+  scriptFr: string;
+  duration: number;
+  teacherName: string;
+  teacherAvatar?: string;
+  sortOrder: number;
+  chapterId: string;
+  chapter?: BACChapter;
+  completed?: boolean;
+  downloadedPath?: string;
+}
+
+export interface AudioPlayerState {
+  currentLesson: BACLesson | null;
+  isPlaying: boolean;
+  position: number;
+  duration: number;
+  speed: number;
+  isReady: boolean;
+}
 
 export interface Page<T = any> {
   contents: T[];

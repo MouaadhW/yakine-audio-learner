@@ -229,7 +229,7 @@ const HomeScreen = () => {
           <Heading
               title={t('recentPosts')}
             seeAll={() => {
-              tabNavigation.navigate('Blogs');
+              tabNavigation.navigate('Subjects');
             }}
           />
 

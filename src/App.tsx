@@ -47,7 +47,25 @@ const queryClient = new QueryClient({
 const App = () => {
   useEffect(() => {
     const setupAppServices = async () => {
-      return;
+      let isExpoGo = false;
+
+      try {
+        const constantsModule = require('expo-constants') as {
+          default?: { appOwnership?: string };
+          appOwnership?: string;
+        };
+        const constants = constantsModule.default ?? constantsModule;
+        isExpoGo = constants.appOwnership === 'expo';
+      } catch {
+        isExpoGo = false;
+      }
+
+      if (isExpoGo) {
+        return;
+      }
+
+      const { setupTrackPlayer } = await import('./lib/audio/setupTrackPlayer');
+      await setupTrackPlayer();
     };
 
     void setupAppServices();

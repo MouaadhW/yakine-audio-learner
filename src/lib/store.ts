@@ -1,9 +1,11 @@
+import audioPlayerReducer from '@/features/audioPlayerSlice';
 import themeReducer from '@/features/themeSlice';
 import { configureStore } from '@reduxjs/toolkit';
 
 export const store = configureStore({
   reducer: {
     theme: themeReducer,
+    audioPlayer: audioPlayerReducer,
   },
 });
 

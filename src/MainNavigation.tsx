@@ -13,11 +13,15 @@ import MainTabs from './MainTabs';
 import { DefaultStyles } from './components/styles';
 import { CustomStatusBar } from './components/ui/CustomStatusBar';
 import { ToastErrorLayout, ToastInfoLayout } from './components/ui/ToastLayout';
+import AudioPlayerScreen from './features/audio/AudioPlayerScreen';
 import PostDetailScreen from './features/blog/PostDetailScreen';
 import CourseDetailScreen from './features/course/CourseDetailScreen';
 import CourseListHeaderRight from './features/course/CourseListHeaderRight';
 import CourseListHeaderTitle from './features/course/CourseListHeaderTitle';
 import CourseListScreen from './features/course/CourseListScreen';
+import ChapterListScreen from './features/subjects/ChapterListScreen';
+import LessonListScreen from './features/subjects/LessonListScreen';
+import SubjectListScreen from './features/subjects/SubjectListScreen';
 import { selectTheme } from './features/themeSlice';
 import { useAppSelector } from './lib/hooks';
 import { RootStackParamList } from './navigations';
@@ -140,6 +144,29 @@ const MainNavigation = () => {
                   </HeaderButtons>
                 );
               },
+            })}
+          />
+          <Stack.Screen
+            name="SubjectList"
+            component={SubjectListScreen}
+            options={{ title: 'Subjects' }}
+          />
+          <Stack.Screen
+            name="ChapterList"
+            component={ChapterListScreen}
+            options={{ title: 'Chapters' }}
+          />
+          <Stack.Screen
+            name="LessonList"
+            component={LessonListScreen}
+            options={{ title: 'Lessons' }}
+          />
+          <Stack.Screen
+            name="AudioPlayer"
+            component={AudioPlayerScreen}
+            options={({ route }) => ({
+              title: route.params.lesson.titleFr,
+              headerBackTitleVisible: false,
             })}
           />
         </Stack.Navigator>
