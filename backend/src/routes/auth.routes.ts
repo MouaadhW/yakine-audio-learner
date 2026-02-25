@@ -1,9 +1,16 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import { requireAuth } from '../middleware/auth';
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: 'Too many requests, please try again later' }
+});
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -24,7 +31,7 @@ const refreshSchema = z.object({
 
 export const authRouter = Router();
 
-authRouter.post('/register', async (req, res, next) => {
+authRouter.post('/register', authLimiter, async (req, res, next) => {
   try {
     const input = registerSchema.parse(req.body);
     const existing = await prisma.user.findUnique({ where: { email: input.email } });
@@ -65,7 +72,7 @@ authRouter.post('/register', async (req, res, next) => {
   }
 });
 
-authRouter.post('/login', async (req, res, next) => {
+authRouter.post('/login', authLimiter, async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
 
@@ -125,7 +132,7 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
   }
 });
 
-authRouter.post('/refresh', async (req, res, next) => {
+authRouter.post('/refresh', authLimiter, async (req, res, next) => {
   try {
     const input = refreshSchema.parse(req.body);
 
