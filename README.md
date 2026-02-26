@@ -64,25 +64,3 @@ If everything is set up _correctly_, you should see your new app running in your
 
 This is one way to run your app — you can also run it directly from within Android Studio and Xcode respectively.
 
-## Support me
-
-<a href="https://www.buymeacoffee.com/yzox2vc1i">
-	<img src="images/bmc-button.png" width="200">
-</a>
-<br/>
-<br/>
-
-## Screenshots
-
-<div float="left">
-   <img src="images/ios-home.png" width="150">
-   <img src="images/ios-home-dark.png" width="150">
-   <img src="images/ios-post-dark.png" width="150">
-   
-</div>
-
-<div float="left">
-   <img src="images/android-home.png" width="150">
-   <img src="images/android-home-dark.png" width="150">
-   <img src="images/android-post.png" width="150">
-</div>
