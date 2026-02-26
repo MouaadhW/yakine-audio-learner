@@ -19,5 +19,6 @@ export default {
   appearance: 'Apparence',
   lightMode: 'Clair',
   darkMode: 'Sombre',
-  systemMode: 'Système'
+  systemMode: 'Système',
+  logout: 'Déconnexion'
 };

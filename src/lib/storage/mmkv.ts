@@ -10,11 +10,14 @@ export const storageKeys = {
   themeMode: 'theme.mode',
   language: 'app.language',
   downloads: 'audio.downloads',
+  authToken: 'auth.token',
+  authUser: 'auth.user',
 } as const;
 
 export const mmkv = {
   getString: (key: string) => storage.getString(key),
   setString: (key: string, value: string) => storage.set(key, value),
+  delete: (key: string) => storage.delete(key),
   getObject: <T>(key: string): T | undefined => {
     const value = storage.getString(key);
     if (!value) {

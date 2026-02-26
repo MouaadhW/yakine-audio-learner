@@ -14,6 +14,9 @@ import { DefaultStyles } from './components/styles';
 import { CustomStatusBar } from './components/ui/CustomStatusBar';
 import { ToastErrorLayout, ToastInfoLayout } from './components/ui/ToastLayout';
 import AudioPlayerScreen from './features/audio/AudioPlayerScreen';
+import LoginScreen from './features/auth/LoginScreen';
+import SignupScreen from './features/auth/SignupScreen';
+import { selectIsLoggedIn } from './features/auth/authSlice';
 import PostDetailScreen from './features/blog/PostDetailScreen';
 import CourseDetailScreen from './features/course/CourseDetailScreen';
 import CourseListHeaderRight from './features/course/CourseListHeaderRight';
@@ -33,6 +36,7 @@ const screen = Dimensions.get('window');
 const MainNavigation = () => {
   const navigationRef = useNavigationContainerRef();
   const theme = useAppSelector(selectTheme);
+  const isLoggedIn = useAppSelector(selectIsLoggedIn);
 
   const insets = useSafeAreaInsets();
 
@@ -51,27 +55,6 @@ const MainNavigation = () => {
         <CustomStatusBar />
         <Stack.Navigator
           screenOptions={{
-            // header: ({ options, route, navigation }) => {
-            //   return (
-            //     <Header
-            //       {...(options as any)}
-            //       title={getHeaderTitle(options, route.name)}
-            //       headerTitleContainerStyle={{
-            //         flex: 1,
-            //       }}
-            //       headerLeftLabelVisible={false}
-            //       headerShadowVisible={false}
-            //       headerTintColor={theme.colors.text}
-            //       headerStatusBarHeight={insets.top}
-            //       headerLeft={props => (
-            //         <HeaderBackButton
-            //           {...props}
-            //           onPress={() => navigation.pop()}
-            //         />
-            //       )}
-            //     />
-            //   );
-            // },
             headerBackTitleVisible: false,
             headerShadowVisible: false,
             headerTintColor: theme.colors.text,
@@ -82,15 +65,36 @@ const MainNavigation = () => {
               ...DefaultStyles.fonts.medium,
             },
           }}>
-          <Stack.Screen
-            name="MainTabs"
-            component={MainTabs}
-            options={{
-              title: 'Back',
-              headerShown: false,
-              animation: 'fade',
-            }}
-          />
+          {!isLoggedIn ? (
+            <>
+              <Stack.Screen
+                name="Login"
+                component={LoginScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'fade',
+                }}
+              />
+              <Stack.Screen
+                name="Signup"
+                component={SignupScreen}
+                options={{
+                  headerShown: false,
+                  animation: 'fade',
+                }}
+              />
+            </>
+          ) : (
+            <>
+              <Stack.Screen
+                name="MainTabs"
+                component={MainTabs}
+                options={{
+                  title: 'Back',
+                  headerShown: false,
+                  animation: 'fade',
+                }}
+              />
           <Stack.Screen
             name="BlogDetail"
             component={PostDetailScreen}
@@ -169,6 +173,8 @@ const MainNavigation = () => {
               headerBackTitleVisible: false,
             })}
           />
+            </>
+          )}
         </Stack.Navigator>
       </NavigationContainer>
       <Toast
