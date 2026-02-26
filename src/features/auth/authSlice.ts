@@ -44,8 +44,8 @@ const authSlice = createSlice({
       state.isLoggedIn = false;
       state.user = null;
       state.token = null;
-      mmkv.setString(storageKeys.authToken, '');
-      mmkv.setString(storageKeys.authUser, '');
+      mmkv.delete(storageKeys.authToken);
+      mmkv.delete(storageKeys.authUser);
     },
   },
 });
