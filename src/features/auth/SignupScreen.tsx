@@ -21,7 +21,7 @@ import { makeApiRequest } from '@/lib/makeApiRequest';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Signup'>;
 
-type UserRole = 'student' | 'teacher';
+type UserRole = 'STUDENT' | 'TEACHER';
 
 const SignupScreen = ({ navigation }: Props) => {
   const dispatch = useAppDispatch();
@@ -31,7 +31,7 @@ const SignupScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('student');
+  const [role, setRole] = useState<UserRole>('STUDENT');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -101,7 +101,7 @@ const SignupScreen = ({ navigation }: Props) => {
         options: {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, email, password, role }),
+          body: JSON.stringify({ name: username, email, password, role }),
         },
       });
 
@@ -115,7 +115,8 @@ const SignupScreen = ({ navigation }: Props) => {
       dispatch(
         loginSuccess({
           user: data.user,
-          token: data.token,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
         }),
       );
     } catch {
@@ -218,8 +219,8 @@ const SignupScreen = ({ navigation }: Props) => {
               I am a
             </Text>
             <View style={styles.roleRow}>
-              {renderRoleOption('student', 'Student')}
-              {renderRoleOption('teacher', 'Teacher')}
+              {renderRoleOption('STUDENT', 'Student')}
+              {renderRoleOption('TEACHER', 'Teacher')}
             </View>
           </View>
 

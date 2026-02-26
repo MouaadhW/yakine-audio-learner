@@ -4,26 +4,28 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface AuthUser {
   id: string;
-  username: string;
+  name: string;
   email: string;
-  role: 'student' | 'teacher';
+  role: 'STUDENT' | 'TEACHER' | 'ADMIN';
+  language?: string;
 }
 
 interface AuthState {
   isLoggedIn: boolean;
   user: AuthUser | null;
-  token: string | null;
+  accessToken: string | null;
+  refreshToken: string | null;
 }
 
 const loadInitialState = (): AuthState => {
-  const token = mmkv.getString(storageKeys.authToken);
+  const accessToken = mmkv.getString(storageKeys.accessToken);
   const user = mmkv.getObject<AuthUser>(storageKeys.authUser);
 
-  if (token && user) {
-    return { isLoggedIn: true, user, token };
+  if (accessToken && user) {
+    return { isLoggedIn: true, user, accessToken, refreshToken: mmkv.getString(storageKeys.refreshToken) ?? null };
   }
 
-  return { isLoggedIn: false, user: null, token: null };
+  return { isLoggedIn: false, user: null, accessToken: null, refreshToken: null };
 };
 
 const authSlice = createSlice({
@@ -32,19 +34,23 @@ const authSlice = createSlice({
   reducers: {
     loginSuccess: (
       state,
-      action: PayloadAction<{ user: AuthUser; token: string }>,
+      action: PayloadAction<{ user: AuthUser; accessToken: string; refreshToken: string }>,
     ) => {
       state.isLoggedIn = true;
       state.user = action.payload.user;
-      state.token = action.payload.token;
-      mmkv.setString(storageKeys.authToken, action.payload.token);
+      state.accessToken = action.payload.accessToken;
+      state.refreshToken = action.payload.refreshToken;
+      mmkv.setString(storageKeys.accessToken, action.payload.accessToken);
+      mmkv.setString(storageKeys.refreshToken, action.payload.refreshToken);
       mmkv.setObject(storageKeys.authUser, action.payload.user);
     },
     logout: state => {
       state.isLoggedIn = false;
       state.user = null;
-      state.token = null;
-      mmkv.delete(storageKeys.authToken);
+      state.accessToken = null;
+      state.refreshToken = null;
+      mmkv.delete(storageKeys.accessToken);
+      mmkv.delete(storageKeys.refreshToken);
       mmkv.delete(storageKeys.authUser);
     },
   },
