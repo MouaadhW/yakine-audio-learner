@@ -10,7 +10,8 @@ export const storageKeys = {
   themeMode: 'theme.mode',
   language: 'app.language',
   downloads: 'audio.downloads',
-  authToken: 'auth.token',
+  accessToken: 'auth.accessToken',
+  refreshToken: 'auth.refreshToken',
   authUser: 'auth.user',
 } as const;
 

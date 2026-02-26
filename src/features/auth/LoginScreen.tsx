@@ -95,7 +95,8 @@ const LoginScreen = ({ navigation }: Props) => {
       dispatch(
         loginSuccess({
           user: data.user,
-          token: data.token,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
         }),
       );
     } catch {

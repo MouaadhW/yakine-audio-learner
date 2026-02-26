@@ -1,9 +1,16 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { signAccessToken } from '../lib/jwt';
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import { requireAuth } from '../middleware/auth';
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: 'Too many requests, please try again later' }
+});
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -18,9 +25,13 @@ const loginSchema = z.object({
   password: z.string().min(6)
 });
 
+const refreshSchema = z.object({
+  refreshToken: z.string().min(1)
+});
+
 export const authRouter = Router();
 
-authRouter.post('/register', async (req, res, next) => {
+authRouter.post('/register', authLimiter, async (req, res, next) => {
   try {
     const input = registerSchema.parse(req.body);
     const existing = await prisma.user.findUnique({ where: { email: input.email } });
@@ -41,10 +52,13 @@ authRouter.post('/register', async (req, res, next) => {
       }
     });
 
-    const token = signAccessToken({ sub: user.id, role: user.role });
+    const tokenPayload = { sub: user.id, role: user.role };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
 
     return res.status(201).json({
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -58,7 +72,7 @@ authRouter.post('/register', async (req, res, next) => {
   }
 });
 
-authRouter.post('/login', async (req, res, next) => {
+authRouter.post('/login', authLimiter, async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
 
@@ -74,10 +88,13 @@ authRouter.post('/login', async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    const token = signAccessToken({ sub: user.id, role: user.role });
+    const tokenPayload = { sub: user.id, role: user.role };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
 
     return res.json({
-      token,
+      accessToken,
+      refreshToken,
       user: {
         id: user.id,
         email: user.email,
@@ -110,6 +127,33 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
     }
 
     return res.json(user);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+authRouter.post('/refresh', authLimiter, async (req, res, next) => {
+  try {
+    const input = refreshSchema.parse(req.body);
+
+    let payload;
+    try {
+      payload = verifyRefreshToken(input.refreshToken);
+    } catch {
+      return res.status(401).json({ message: 'Invalid or expired refresh token' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+
+    if (!user) {
+      return res.status(401).json({ message: 'User no longer exists' });
+    }
+
+    const tokenPayload = { sub: user.id, role: user.role };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+
+    return res.json({ accessToken, refreshToken });
   } catch (error) {
     return next(error);
   }
