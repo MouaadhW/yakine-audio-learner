@@ -1,6 +1,8 @@
 import { BACLesson } from './lib/models';
 
 export type RootStackParamList = {
+  Login: undefined;
+  Signup: undefined;
   MainTabs: undefined;
   BlogDetail: { slug: string };
   CourseDetail: { slug: string };

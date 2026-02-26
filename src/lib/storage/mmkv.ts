@@ -10,6 +10,8 @@ export const storageKeys = {
   themeMode: 'theme.mode',
   language: 'app.language',
   downloads: 'audio.downloads',
+  authToken: 'auth.token',
+  authUser: 'auth.user',
 } as const;
 
 export const mmkv = {

@@ -5,6 +5,8 @@ import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import { selectTheme, setDarkMode, setLightMode } from '../themeSlice';
 import { changeLanguage } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
+import { logout } from '../auth/authSlice';
+import { DefaultStyles } from '@/components/styles';
 
 const ProfileScreen = () => {
   const dispatch = useAppDispatch();
@@ -106,6 +108,26 @@ const ProfileScreen = () => {
               <Text style={{ color: colors.text }}>{t('darkMode')}</Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.logoutSection}>
+            <TouchableOpacity
+              style={[
+                styles.logoutButton,
+                { backgroundColor: colors.error + '12', borderColor: colors.error + '30' },
+              ]}
+              onPress={() => {
+                dispatch(logout());
+              }}
+              activeOpacity={0.7}>
+              <Text
+                style={[
+                  styles.logoutText,
+                  { color: colors.error },
+                ]}>
+                {t('logout')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </>
@@ -131,6 +153,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
+  },
+  logoutSection: {
+    marginTop: 24,
+  },
+  logoutButton: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutText: {
+    fontSize: 15,
+    ...DefaultStyles.fonts.semiBold,
   },
 });
 
