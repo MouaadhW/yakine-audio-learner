@@ -88,8 +88,8 @@ export async function makeApiRequest({
           } finally {
             clearTimeout(refreshTimeoutId);
           }
-        } catch {
-          // refresh failed, return original 401 response
+        } catch (refreshError) {
+          console.warn('Token refresh failed:', refreshError);
         }
       }
     }
