@@ -31,6 +31,12 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(1)
 });
 
+const updateProfileSchema = z.object({
+  name: z.string().min(2).optional(),
+  email: z.string().email().optional(),
+  language: z.enum(['fr', 'en']).optional()
+});
+
 export const authRouter = Router();
 
 authRouter.post('/register', authLimiter, async (req, res, next) => {
@@ -127,6 +133,41 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    return res.json(user);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+authRouter.put('/profile', requireAuth, async (req, res, next) => {
+  try {
+    const input = updateProfileSchema.parse(req.body);
+
+    // If email is being changed, check it's not already taken
+    if (input.email) {
+      const existing = await prisma.user.findUnique({ where: { email: input.email } });
+      if (existing && existing.id !== req.auth!.userId) {
+        return res.status(409).json({ message: 'Email already in use' });
+      }
+    }
+
+    const user = await prisma.user.update({
+      where: { id: req.auth!.userId },
+      data: {
+        ...(input.name !== undefined && { name: input.name }),
+        ...(input.email !== undefined && { email: input.email }),
+        ...(input.language !== undefined && { language: input.language }),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        language: true,
+        createdAt: true
+      }
+    });
 
     return res.json(user);
   } catch (error) {

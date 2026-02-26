@@ -4,7 +4,7 @@ import { buildQueryParams } from '../utils';
 import { validateApiResponse } from '../validateApiResponse';
 
 export async function getPostBySlug(slug: string, signal?: AbortSignal) {
-  const url = `/content/posts/${slug}`;
+  const url = `/api/lessons/${slug}`;
 
   const resp = await makeApiRequest({
     url,
@@ -21,7 +21,7 @@ export async function getPostBySlug(slug: string, signal?: AbortSignal) {
 export async function getPosts(params: SearchParams, signal?: AbortSignal) {
   const query = buildQueryParams(params);
 
-  const url = `/content/posts${query}`;
+  const url = `/api/lessons${query}`;
 
   const resp = await makeApiRequest({
     url,

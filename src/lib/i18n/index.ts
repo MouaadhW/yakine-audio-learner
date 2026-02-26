@@ -2,13 +2,25 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './en';
 import fr from './fr';
+import { mmkv, storageKeys } from '../storage/mmkv';
 
 export type AppLanguage = 'en' | 'fr';
 
-const storageKey = 'app.language';
+const readLanguage = (): string | undefined => {
+  try {
+    return mmkv.getString(storageKeys.language);
+  } catch {
+    return undefined;
+  }
+};
 
-let readLanguage = (): string | undefined => undefined;
-let writeLanguage = (_value: AppLanguage): void => {};
+const writeLanguage = (value: AppLanguage): void => {
+  try {
+    mmkv.setString(storageKeys.language, value);
+  } catch {
+    // storage not available
+  }
+};
 
 const resources = {
   en: { translation: en },

@@ -1,22 +1,49 @@
 import { Text } from '@/components/ui/Text';
+import { Loading } from '@/components/ui/Loading';
+import { ErrorView } from '@/components/ui/ErrorView';
+import { FAB } from '@/components/ui/FAB';
+import { AdminFormModal, FormField } from '@/components/ui/AdminFormModal';
 import { selectTheme } from '@/features/themeSlice';
+import { selectAuthUser } from '@/features/auth/authSlice';
 import { useAppSelector } from '@/lib/hooks';
 import { BACLesson } from '@/lib/models';
 import { downloadLessonAudio } from '@/lib/audio/downloadService';
-import { bacLessons } from '@/lib/mockData';
+import {
+  getLessonsByChapter,
+  createLesson,
+  updateLesson,
+  deleteLesson,
+} from '@/lib/services/BacApi';
 import {
   getAllLessonDownloadMetadata,
   upsertLessonDownloadMetadata,
 } from '@/lib/storage/downloadMetadata';
 import { RootStackParamList } from '@/navigations';
-import { CheckCircleIcon, DownloadIcon, PlayCircleIcon } from 'lucide-react-native';
+import {
+  CheckCircleIcon,
+  DownloadIcon,
+  PencilIcon,
+  PlayCircleIcon,
+  Trash2Icon,
+} from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useMemo, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LessonList'>;
 const PROGRESS_UPDATE_BUCKETS = 20;
+
+const lessonFields: FormField[] = [
+  { key: 'titleEn', label: 'Title (English)', required: true },
+  { key: 'titleFr', label: 'Title (French)', required: true },
+  { key: 'audioUrl', label: 'Audio URL' },
+  { key: 'scriptEn', label: 'Script (English)', multiline: true },
+  { key: 'scriptFr', label: 'Script (French)', multiline: true },
+  { key: 'duration', label: 'Duration (seconds)', keyboardType: 'numeric' },
+  { key: 'sortOrder', label: 'Sort Order', keyboardType: 'numeric' },
+];
 
 const formatDuration = (seconds: number) => {
   const m = Math.floor(seconds / 60);
@@ -27,14 +54,30 @@ const formatDuration = (seconds: number) => {
 const LessonListScreen = ({ route, navigation }: Props) => {
   const { chapterId } = route.params;
   const { colors } = useAppSelector(selectTheme);
-  const { i18n } = useTranslation();
+  const user = useAppSelector(selectAuthUser);
+  const { i18n, t } = useTranslation();
   const isFr = i18n.language === 'fr';
+  const queryClient = useQueryClient();
   const [downloadMap, setDownloadMap] = useState(getAllLessonDownloadMetadata());
+
+  const isAdmin = user?.role === 'ADMIN';
+  const isTeacher = user?.role === 'TEACHER';
+  const canAdd = isAdmin || isTeacher;
+
+  const [showModal, setShowModal] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<BACLesson | null>(null);
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const { data: apiLessons, isLoading, error, refetch } = useQuery({
+    queryKey: ['/api/lessons', chapterId],
+    queryFn: ({ signal }) => getLessonsByChapter(chapterId, signal),
+    placeholderData: [],
+  });
 
   const lessons = useMemo(
     () =>
-      bacLessons
-        .filter(l => l.chapterId === chapterId)
+      (apiLessons ?? [])
         .map(lesson => {
           const metadata = downloadMap[lesson.id];
           return {
@@ -45,8 +88,99 @@ const LessonListScreen = ({ route, navigation }: Props) => {
             downloadProgress: metadata?.progress ?? 0,
           };
         }),
-    [chapterId, downloadMap],
+    [apiLessons, downloadMap],
   );
+
+  // Can user edit this lesson?
+  const canEditLesson = useCallback(
+    (item: BACLesson) => {
+      if (isAdmin) return true;
+      if (isTeacher && item.teacherId === user?.id) return true;
+      return false;
+    },
+    [isAdmin, isTeacher, user?.id],
+  );
+
+  const openAdd = useCallback(() => {
+    setEditingLesson(null);
+    setFormValues({ sortOrder: String((lessons?.length ?? 0) + 1), duration: '0' });
+    setShowModal(true);
+  }, [lessons]);
+
+  const openEdit = useCallback((item: BACLesson) => {
+    setEditingLesson(item);
+    setFormValues({
+      titleEn: item.titleEn,
+      titleFr: item.titleFr,
+      audioUrl: item.audioUrl ?? '',
+      scriptEn: item.scriptEn ?? '',
+      scriptFr: item.scriptFr ?? '',
+      duration: String(item.duration ?? 0),
+      sortOrder: String(item.sortOrder),
+    });
+    setShowModal(true);
+  }, []);
+
+  const handleDeleteLesson = useCallback(
+    (item: BACLesson) => {
+      Alert.alert(t('deleteLesson'), t('deleteConfirm'), [
+        { text: t('cancel'), style: 'cancel' },
+        {
+          text: t('delete'),
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteLesson(item.id);
+              queryClient.invalidateQueries({ queryKey: ['/api/lessons', chapterId] });
+            } catch (err) {
+              Alert.alert('Error', String(err));
+            }
+          },
+        },
+      ]);
+    },
+    [t, queryClient, chapterId],
+  );
+
+  const handleSave = useCallback(async () => {
+    if (!formValues.titleEn || !formValues.titleFr) {
+      Alert.alert('Error', 'Please fill all required fields');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload: any = {
+        titleEn: formValues.titleEn,
+        titleFr: formValues.titleFr,
+        audioUrl: formValues.audioUrl || undefined,
+        scriptEn: formValues.scriptEn || undefined,
+        scriptFr: formValues.scriptFr || undefined,
+        duration: formValues.duration ? parseInt(formValues.duration, 10) : undefined,
+        sortOrder: formValues.sortOrder ? parseInt(formValues.sortOrder, 10) : undefined,
+      };
+
+      if (editingLesson) {
+        await updateLesson(editingLesson.id, payload);
+      } else {
+        await createLesson({ ...payload, chapterId });
+      }
+      queryClient.invalidateQueries({ queryKey: ['/api/lessons', chapterId] });
+      setShowModal(false);
+    } catch (err) {
+      Alert.alert('Error', String(err));
+    } finally {
+      setSaving(false);
+    }
+  }, [editingLesson, formValues, queryClient, chapterId]);
+
+  if (isLoading) {
+    return <Loading />;
+  }
+
+  if (error && !lessons.length) {
+    return <ErrorView error={error} action={() => { refetch(); }} />;
+  }
 
   const updateDownloadState = (
     lessonId: string,
@@ -104,71 +238,120 @@ const LessonListScreen = ({ route, navigation }: Props) => {
     return isFr ? 'En ligne' : 'Online';
   };
 
-  const renderItem = ({ item }: { item: BACLesson }) => (
-    <TouchableOpacity
-      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-      onPress={() => navigation.navigate('AudioPlayer', { lesson: item })}
-      activeOpacity={0.7}>
-      <View style={styles.cardLeft}>
-        {item.completed ? (
-          <CheckCircleIcon size={28} color={colors.primary} />
-        ) : (
-          <PlayCircleIcon size={28} color={colors.primary} />
-        )}
-      </View>
-      <View style={styles.cardBody}>
-        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
-          {isFr ? item.titleFr : item.titleEn}
-        </Text>
-        <Text style={[styles.meta, { color: 'gray' }]}>
-          🎙️ {item.teacherName} • ⏱️ {formatDuration(item.duration)}
-        </Text>
-        <Text style={[styles.status, { color: colors.primary }]}>
-          {getStatusLabel(item)}
-        </Text>
-        {item.downloadStatus === 'downloading' && (
-          <View style={[styles.downloadProgressTrack, { backgroundColor: colors.border }]}>
-            <View
-              style={[
-                styles.downloadProgressFill,
-                {
-                  width: `${Math.round((item.downloadProgress ?? 0) * 100)}%`,
-                  backgroundColor: colors.primary,
-                },
-              ]}
-            />
-          </View>
-        )}
-      </View>
+  const renderItem = ({ item }: { item: BACLesson }) => {
+    const editable = canEditLesson(item);
+    return (
       <TouchableOpacity
-        style={styles.downloadAction}
-        onPress={event => {
-          event.stopPropagation();
-          if (!item.downloadedPath) {
-            handleDownload(item);
-          }
-        }}
-        disabled={item.downloadStatus === 'downloading' || !!item.downloadedPath}>
-        {item.downloadedPath ? (
-          <Text style={styles.downloadBadge}>📥</Text>
-        ) : (
-          <DownloadIcon
-            size={18}
-            color={item.downloadStatus === 'downloading' ? 'gray' : colors.primary}
-          />
-        )}
+        style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+        onPress={() => navigation.navigate('AudioPlayer', { lesson: item })}
+        activeOpacity={0.7}>
+        <View style={styles.cardLeft}>
+          {item.completed ? (
+            <CheckCircleIcon size={28} color={colors.primary} />
+          ) : (
+            <PlayCircleIcon size={28} color={colors.primary} />
+          )}
+        </View>
+        <View style={styles.cardBody}>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+            {isFr ? item.titleFr : item.titleEn}
+          </Text>
+          <Text style={[styles.meta, { color: colors.muted }]}>
+            🎙️ {item.teacherName} • ⏱️ {formatDuration(item.duration)}
+          </Text>
+          <Text style={[styles.status, { color: colors.primary }]}>
+            {getStatusLabel(item)}
+          </Text>
+          {item.downloadStatus === 'downloading' && (
+            <View style={[styles.downloadProgressTrack, { backgroundColor: colors.border }]}>
+              <View
+                style={[
+                  styles.downloadProgressFill,
+                  {
+                    width: `${Math.round((item.downloadProgress ?? 0) * 100)}%`,
+                    backgroundColor: colors.primary,
+                  },
+                ]}
+              />
+            </View>
+          )}
+        </View>
+        <View style={styles.cardRight}>
+          {editable && (
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: colors.primary + '20' }]}
+              onPress={e => {
+                e.stopPropagation();
+                openEdit(item);
+              }}>
+              <PencilIcon size={14} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          {isAdmin && (
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: colors.error + '20' }]}
+              onPress={e => {
+                e.stopPropagation();
+                handleDeleteLesson(item);
+              }}>
+              <Trash2Icon size={14} color={colors.error} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={styles.downloadAction}
+            onPress={event => {
+              event.stopPropagation();
+              if (!item.downloadedPath) {
+                handleDownload(item);
+              }
+            }}
+            disabled={item.downloadStatus === 'downloading' || !!item.downloadedPath}>
+            {item.downloadedPath ? (
+              <Text style={styles.downloadBadge}>📥</Text>
+            ) : (
+              <DownloadIcon
+                size={18}
+                color={item.downloadStatus === 'downloading' ? colors.muted : colors.primary}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   return (
-    <FlatList
-      data={lessons}
-      keyExtractor={item => item.id}
-      renderItem={renderItem}
-      contentContainerStyle={{ padding: 16, backgroundColor: colors.background }}
-      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-    />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <FlatList
+        data={lessons}
+        keyExtractor={item => item.id}
+        renderItem={renderItem}
+        contentContainerStyle={{ padding: 16 }}
+        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      />
+      {canAdd && <FAB onPress={openAdd} />}
+      <AdminFormModal
+        visible={showModal}
+        title={editingLesson ? t('editLesson') : t('addLesson')}
+        fields={lessonFields}
+        values={formValues}
+        onChange={(key, val) => setFormValues(prev => ({ ...prev, [key]: val }))}
+        onSave={handleSave}
+        onCancel={() => setShowModal(false)}
+        onDelete={
+          editingLesson && isAdmin
+            ? () => {
+                setShowModal(false);
+                handleDeleteLesson(editingLesson);
+              }
+            : undefined
+        }
+        saveLabel={t('save')}
+        cancelLabel={t('cancel')}
+        deleteLabel={t('delete')}
+        loading={saving}
+      />
+    </View>
   );
 };
 
@@ -183,6 +366,7 @@ const styles = StyleSheet.create({
   },
   cardLeft: { justifyContent: 'center' },
   cardBody: { flex: 1 },
+  cardRight: { alignItems: 'center', gap: 6 },
   title: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
   meta: { fontSize: 12 },
   status: { fontSize: 12, marginTop: 4, fontWeight: '600' },
@@ -195,6 +379,13 @@ const styles = StyleSheet.create({
   downloadProgressFill: { height: 4, borderRadius: 2 },
   downloadAction: { padding: 6 },
   downloadBadge: { fontSize: 18 },
+  actionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });
 
 export default LessonListScreen;

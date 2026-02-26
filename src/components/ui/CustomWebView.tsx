@@ -1,8 +1,23 @@
 import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
 import { useState } from 'react';
-import { Linking } from 'react-native';
-import WebView from 'react-native-webview';
+import { Linking, ScrollView, Text } from 'react-native';
+
+// Lazy-load react-native-webview to avoid crash in Expo Go
+let WebViewComponent: typeof import('react-native-webview').default | null = null;
+try {
+  const isExpoGo = (() => {
+    try {
+      const c = require('expo-constants') as { default?: { appOwnership?: string }; appOwnership?: string };
+      return (c.default ?? c).appOwnership === 'expo';
+    } catch { return false; }
+  })();
+  if (!isExpoGo) {
+    WebViewComponent = require('react-native-webview').default;
+  }
+} catch {
+  WebViewComponent = null;
+}
 
 interface CustomWebViewProps {
   html?: string;
@@ -13,6 +28,26 @@ export const CustomWebView = ({ html, basic }: CustomWebViewProps) => {
   const { colors, dark } = useAppSelector(selectTheme);
 
   const [webViewHeight, setWebViewHeight] = useState<number>();
+
+  // Fallback for Expo Go: render raw text stripped of HTML tags
+  if (!WebViewComponent) {
+    const plainText = (html ?? '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .trim();
+    return (
+      <ScrollView style={{ maxHeight: 400 }} nestedScrollEnabled>
+        <Text style={{ color: colors.text, fontSize: 14, lineHeight: 22 }}>
+          {plainText || '(No content)'}
+        </Text>
+      </ScrollView>
+    );
+  }
 
   const extraLib = `
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.10.0/build/styles/atom-one-dark.min.css">
@@ -114,7 +149,7 @@ export const CustomWebView = ({ html, basic }: CustomWebViewProps) => {
   `;
 
   return (
-    <WebView
+    <WebViewComponent
       originWhitelist={['*']}
       source={{ html: htmlWrapper, baseUrl: '' }}
       scrollEnabled={false}

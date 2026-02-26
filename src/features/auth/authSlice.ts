@@ -53,10 +53,14 @@ const authSlice = createSlice({
       mmkv.delete(storageKeys.refreshToken);
       mmkv.delete(storageKeys.authUser);
     },
+    updateUser: (state, action: PayloadAction<AuthUser>) => {
+      state.user = action.payload;
+      mmkv.setObject(storageKeys.authUser, action.payload);
+    },
   },
 });
 
-export const { loginSuccess, logout } = authSlice.actions;
+export const { loginSuccess, logout, updateUser } = authSlice.actions;
 
 export const selectAuth = (state: RootState) => state.auth;
 export const selectIsLoggedIn = (state: RootState) => state.auth.isLoggedIn;

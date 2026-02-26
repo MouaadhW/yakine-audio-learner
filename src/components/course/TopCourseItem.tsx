@@ -5,7 +5,7 @@ import { uppercaseFirstChar } from '@/lib/utils';
 import { RootStackParamList } from '@/navigations';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChartNoAxesColumnIncreasingIcon, StarIcon } from 'lucide-react-native';
+import { ChartNoAxesColumnIncreasingIcon, ImageIcon, StarIcon } from 'lucide-react-native';
 import { Dimensions, StyleSheet, TouchableHighlight, View } from 'react-native';
 import { DefaultStyles } from '../styles';
 import { Spacer } from '../ui/Spacer';
@@ -37,15 +37,17 @@ export const TopCourseItem = ({ value }: TopCourseItemProps) => {
           borderColor: colors.border,
           backgroundColor: colors.card,
         }}>
-        <CustomImage
-          source={
-            value.cover
-              ? { uri: value.cover }
-              : require('@/assets/images/placeholder.jpg')
-          }
-          style={styles.cover}
-          resizeMode="cover"
-        />
+        {value.cover ? (
+          <CustomImage
+            source={{ uri: value.cover }}
+            style={[styles.cover, { backgroundColor: colors.default }]}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.cover, styles.placeholderCover, { backgroundColor: colors.default }]}>
+            <ImageIcon size={28} color={colors.muted} />
+          </View>
+        )}
         <View style={styles.infoContainer}>
           <Text style={{ ...styles.category, color: colors.primary }}>
             {value.category?.name}
@@ -67,8 +69,8 @@ export const TopCourseItem = ({ value }: TopCourseItemProps) => {
               </Text>
             </View>
             <View style={styles.footerItem}>
-              <ChartNoAxesColumnIncreasingIcon color="gray" size={16} />
-              <Text style={styles.footerText}>
+              <ChartNoAxesColumnIncreasingIcon color={colors.muted} size={16} />
+              <Text style={[styles.footerText, { color: colors.muted }]}>
                 {uppercaseFirstChar(value.level)}
               </Text>
             </View>
@@ -94,6 +96,10 @@ const styles = StyleSheet.create({
     borderRadius: DefaultStyles.values.borderRadius,
     width: 120,
   },
+  placeholderCover: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   infoContainer: {
     flex: 1,
   },
@@ -117,7 +123,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: 'gray',
     ...DefaultStyles.fonts.regular,
   },
 });

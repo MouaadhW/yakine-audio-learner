@@ -9,7 +9,7 @@ export async function getCategories(
 ) {
   const query = buildQueryParams(params);
 
-  const url = `/content/categories${query}`;
+  const url = `/api/subjects${query}`;
 
   const resp = await makeApiRequest({
     url,

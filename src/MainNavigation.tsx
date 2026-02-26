@@ -58,7 +58,10 @@ const MainNavigation = () => {
             headerBackTitleVisible: false,
             headerShadowVisible: false,
             headerTintColor: theme.colors.text,
-            navigationBarColor: theme.colors.card,
+            navigationBarColor: theme.colors.tabBar,
+            headerStyle: {
+              backgroundColor: theme.colors.background,
+            },
             animation: 'slide_from_right',
             headerTitleStyle: {
               fontSize: 18,

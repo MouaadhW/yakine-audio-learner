@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   ScrollView,
   StyleSheet,
@@ -106,11 +107,13 @@ const AudioPlayerScreen = ({ route }: Props) => {
   const isFr = i18n.language === 'fr';
 
   const [isPlaying, setIsPlayingLocal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(lesson.duration);
   const [isTrackPlayerAvailable, setIsTrackPlayerAvailable] = useState(false);
   const trackPlayerRef = useRef<TrackPlayerLike | null>(null);
   const expoSoundRef = useRef<ExpoSoundLike | null>(null);
+  const speedRef = useRef(speed);
 
   const [searchQuery, setSearchQuery] = useState('');
   const tabAnim = useRef(new Animated.Value(0)).current;
@@ -118,6 +121,11 @@ const AudioPlayerScreen = ({ route }: Props) => {
 
   const script = isFr ? lesson.scriptFr : lesson.scriptEn;
   const title = isFr ? lesson.titleFr : lesson.titleEn;
+
+  // Keep speedRef in sync so cycleSpeed and initial load use the latest value
+  useEffect(() => {
+    speedRef.current = speed;
+  }, [speed]);
 
   useEffect(() => {
     const isExpoGoRuntime = () => {
@@ -150,6 +158,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
 
     const loadTrack = async () => {
       dispatch(setCurrentLesson(lesson));
+      setIsLoading(true);
 
       const trackPlayer = loadTrackPlayer();
 
@@ -167,7 +176,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
             { uri: lesson.downloadedPath ?? lesson.audioUrl },
             {
               shouldPlay: true,
-              rate: speed,
+              rate: speedRef.current,
               shouldCorrectPitch: true,
               progressUpdateIntervalMillis: 500,
             },
@@ -186,6 +195,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
           setDuration(lesson.duration);
           setPosition(0);
           setIsPlayingLocal(true);
+          setIsLoading(false);
           dispatch(setIsReady(true));
           dispatch(setIsPlaying(true));
         } catch (error) {
@@ -193,6 +203,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
           setDuration(lesson.duration);
           setPosition(0);
           setIsPlayingLocal(false);
+          setIsLoading(false);
           dispatch(setIsReady(false));
           dispatch(setIsPlaying(false));
         }
@@ -211,10 +222,11 @@ const AudioPlayerScreen = ({ route }: Props) => {
           artist: lesson.teacherName,
           duration: lesson.duration,
         });
-        await trackPlayer.setRate(speed);
+        await trackPlayer.setRate(speedRef.current);
         dispatch(setIsReady(true));
         await trackPlayer.play();
         setIsPlayingLocal(true);
+        setIsLoading(false);
         dispatch(setIsPlaying(true));
       } catch (error) {
         console.error('TrackPlayer load error:', error);
@@ -234,7 +246,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
       setIsPlayingLocal(false);
       dispatch(setIsPlaying(false));
     };
-  }, [dispatch, lesson, speed, title]);
+  }, [dispatch, lesson, title]);
 
   useEffect(() => {
     if (!trackPlayerRef.current || !isTrackPlayerAvailable) {
@@ -370,7 +382,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
             <Text
               style={[
                 styles.tabLabel,
-                { color: activeTab === tab ? colors.primary : 'gray' },
+                { color: activeTab === tab ? colors.primary : colors.muted },
               ]}>
               {tab === 'player' ? `🎧 ${isFr ? 'Lecteur' : 'Player'}` : '📄 Script'}
             </Text>
@@ -387,7 +399,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
             <Text style={[styles.trackTitle, { color: colors.text }]} numberOfLines={2}>
               {title}
             </Text>
-            <Text style={[styles.teacherName, { color: 'gray' }]}>🎙️ {lesson.teacherName}</Text>
+            <Text style={[styles.teacherName, { color: colors.muted }]}>🎙️ {lesson.teacherName}</Text>
           </View>
 
           <View style={styles.sliderContainer}>
@@ -409,8 +421,8 @@ const AudioPlayerScreen = ({ route }: Props) => {
               thumbTintColor={colors.primary}
             />
             <View style={styles.timeRow}>
-              <Text style={[styles.timeText, { color: 'gray' }]}>{formatTime(position)}</Text>
-              <Text style={[styles.timeText, { color: 'gray' }]}>{formatTime(duration)}</Text>
+              <Text style={[styles.timeText, { color: colors.muted }]}>{formatTime(position)}</Text>
+              <Text style={[styles.timeText, { color: colors.muted }]}>{formatTime(duration)}</Text>
             </View>
           </View>
 
@@ -422,8 +434,11 @@ const AudioPlayerScreen = ({ route }: Props) => {
 
             <TouchableOpacity
               onPress={togglePlay}
-              style={[styles.playBtn, { backgroundColor: colors.primary }]}> 
-              {isPlaying ? (
+              disabled={isLoading}
+              style={[styles.playBtn, { backgroundColor: colors.primary, opacity: isLoading ? 0.7 : 1 }]}> 
+              {isLoading ? (
+                <ActivityIndicator size="large" color="#fff" />
+              ) : isPlaying ? (
                 <PauseIcon size={32} color="#fff" fill="#fff" />
               ) : (
                 <PlayIcon size={32} color="#fff" fill="#fff" />
@@ -438,7 +453,6 @@ const AudioPlayerScreen = ({ route }: Props) => {
 
           <TouchableOpacity
             onPress={cycleSpeed}
-            disabled={!isTrackPlayerAvailable}
             style={[
               styles.speedBtn,
               { backgroundColor: colors.card, borderColor: colors.border },
@@ -447,7 +461,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
           </TouchableOpacity>
 
           {!isTrackPlayerAvailable && (
-            <Text style={{ color: 'gray', fontSize: 12 }}>
+            <Text style={{ color: colors.muted, fontSize: 12 }}>
               Using Expo audio fallback in Expo Go.
             </Text>
           )}
@@ -470,18 +484,18 @@ const AudioPlayerScreen = ({ route }: Props) => {
               styles.searchBar,
               { backgroundColor: colors.card, borderColor: colors.border },
             ]}>
-            <SearchIcon size={16} color="gray" />
+            <SearchIcon size={16} color={colors.muted} />
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
               placeholder={isFr ? 'Rechercher dans le script...' : 'Search in script...'}
-              placeholderTextColor="gray"
+              placeholderTextColor={colors.muted}
               value={searchQuery}
               onChangeText={setSearchQuery}
               autoCorrect={false}
             />
             {searchQuery.length > 0 && (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Text style={{ color: 'gray' }}>✕</Text>
+                <Text style={{ color: colors.muted }}>✕</Text>
               </TouchableOpacity>
             )}
           </View>

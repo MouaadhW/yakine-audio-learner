@@ -31,7 +31,11 @@ model Subject {
   id       String    @id @default(cuid())
   nameEn   String
   nameFr   String
+  slugEn   String    @default("")
+  slugFr   String    @default("")
   stream   Stream
+  icon     String    @default("📚")
+  color    String    @default("#6C63FF")
   chapters Chapter[]
 }
 
@@ -46,6 +50,7 @@ model Chapter {
   id        String   @id @default(cuid())
   nameEn    String
   nameFr    String
+  sortOrder Int      @default(0)
   subjectId String
   subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   lessons   Lesson[]
@@ -59,6 +64,7 @@ model Lesson {
   scriptEn    String    @db.Text
   scriptFr    String    @db.Text
   duration    Int
+  sortOrder   Int       @default(0)
   chapterId   String
   chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   teacherId   String

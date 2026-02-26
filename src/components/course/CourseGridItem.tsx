@@ -11,7 +11,7 @@ import { Divider } from '../ui/Divider';
 import { Rating } from '../ui/Rating';
 import { Spacer } from '../ui/Spacer';
 import { Text } from '../ui/Text';
-import { DotIcon } from 'lucide-react-native';
+import { DotIcon, ImageIcon } from 'lucide-react-native';
 import { CustomImage } from '../ui/CustomImage';
 
 interface CourseGridItemProps {
@@ -37,16 +37,18 @@ export const CourseGridItem = ({ value }: CourseGridItemProps) => {
           borderColor: colors.border,
           backgroundColor: colors.card,
         }}>
-        <View style={styles.cover}>
-          <CustomImage
-            source={
-              value.cover
-                ? { uri: value.cover }
-                : require('@/assets/images/placeholder.jpg')
-            }
-            style={styles.cover}
-            resizeMode="cover"
-          />
+        <View style={[styles.cover, { backgroundColor: colors.default }]}>
+          {value.cover ? (
+            <CustomImage
+              source={{ uri: value.cover }}
+              style={styles.cover}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.cover, styles.placeholderCover, { backgroundColor: colors.default }]}>
+              <ImageIcon size={36} color={colors.muted} />
+            </View>
+          )}
 
           {/* <View
             style={[
@@ -70,7 +72,7 @@ export const CourseGridItem = ({ value }: CourseGridItemProps) => {
           <Spacer orientation="vertical" spacing={8} />
 
           <View style={styles.subtitleContainer}>
-            <Text style={{ ...styles.footerText }}>
+            <Text style={{ ...styles.footerText, color: colors.muted }}>
               {formatAbbreviate(Number(value.meta?.enrolledCount ?? 0))}
               &nbsp;Enrolled
             </Text>
@@ -88,7 +90,7 @@ export const CourseGridItem = ({ value }: CourseGridItemProps) => {
 
           <View style={{ flex: 1 }} />
 
-          <Text style={{ ...styles.footerText, ...DefaultStyles.fonts.medium }}>
+          <Text style={{ ...styles.footerText, color: colors.muted, ...DefaultStyles.fonts.medium }}>
             {uppercaseFirstChar(value.access)}
           </Text>
         </View>
@@ -107,6 +109,10 @@ const styles = StyleSheet.create({
   cover: {
     flex: 1,
     aspectRatio: 16 / 9,
+  },
+  placeholderCover: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   infoContainer: {
     flex: 1,
@@ -138,7 +144,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: 'gray',
     ...DefaultStyles.fonts.regular,
   },
 });

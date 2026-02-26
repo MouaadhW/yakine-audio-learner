@@ -9,7 +9,7 @@ import {
 import { RootStackParamList } from '@/navigations';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CalendarDaysIcon, EyeIcon } from 'lucide-react-native';
+import { CalendarDaysIcon, EyeIcon, ImageIcon } from 'lucide-react-native';
 import { Dimensions, StyleSheet, TouchableHighlight, View } from 'react-native';
 import { DefaultStyles } from '../styles';
 import { CustomImage } from '../ui/CustomImage';
@@ -41,16 +41,18 @@ export const PostRecentItem = ({ value }: PostRecentItemProps) => {
           borderColor: colors.border,
           backgroundColor: colors.card,
         }}>
-        <View style={styles.cover}>
-          <CustomImage
-            source={
-              value.cover
-                ? { uri: value.cover }
-                : require('@/assets/images/placeholder.jpg')
-            }
-            style={styles.cover}
-            resizeMode="cover"
-          />
+        <View style={[styles.cover, { backgroundColor: colors.default }]}>
+          {value.cover ? (
+            <CustomImage
+              source={{ uri: value.cover }}
+              style={styles.cover}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.cover, styles.placeholderCover, { backgroundColor: colors.default }]}>
+              <ImageIcon size={36} color={colors.muted} />
+            </View>
+          )}
         </View>
 
         <Divider orientation="horizontal" stroke={0.7} />
@@ -62,7 +64,7 @@ export const PostRecentItem = ({ value }: PostRecentItemProps) => {
 
           <Spacer orientation="vertical" spacing={8} />
 
-          <Text numberOfLines={1} style={{ ...styles.wpmText }}>
+          <Text numberOfLines={1} style={{ ...styles.wpmText, color: colors.muted }}>
             {wordPerMinute(value.wordCount)} min read
           </Text>
 
@@ -76,8 +78,8 @@ export const PostRecentItem = ({ value }: PostRecentItemProps) => {
 
           <View style={{ ...styles.footerContainer }}>
             <View style={styles.footerItem}>
-              <CalendarDaysIcon color="gray" size={14} />
-              <Text style={styles.footerText}>
+              <CalendarDaysIcon color={colors.muted} size={14} />
+              <Text style={[styles.footerText, { color: colors.muted }]}>
                 {formatRelativeTimestamp(value.publishedAt)}
               </Text>
             </View>
@@ -85,8 +87,8 @@ export const PostRecentItem = ({ value }: PostRecentItemProps) => {
             <View style={{ flex: 1 }} />
 
             <View style={styles.footerItem}>
-              <EyeIcon color="gray" size={14} />
-              <Text style={styles.footerText}>
+              <EyeIcon color={colors.muted} size={14} />
+              <Text style={[styles.footerText, { color: colors.muted }]}>
                 {formatAbbreviate(Number(value.meta?.viewCount ?? 0))}
               </Text>
             </View>
@@ -108,6 +110,10 @@ const styles = StyleSheet.create({
   cover: {
     aspectRatio: 16 / 9,
   },
+  placeholderCover: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   infoContainer: {
     flex: 1,
     overflow: 'hidden',
@@ -119,7 +125,6 @@ const styles = StyleSheet.create({
   },
   wpmText: {
     fontSize: 14,
-    color: 'gray',
     ...DefaultStyles.fonts.regular,
   },
   footerContainer: {
@@ -133,7 +138,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 14,
-    color: 'gray',
     ...DefaultStyles.fonts.regular,
   },
 });

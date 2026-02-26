@@ -46,6 +46,7 @@ export interface BACLesson {
   duration: number;
   teacherName: string;
   teacherAvatar?: string;
+  teacherId?: string;
   sortOrder: number;
   chapterId: string;
   chapter?: BACChapter;

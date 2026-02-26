@@ -1,15 +1,29 @@
 import { BACLesson } from '@/lib/models';
-import RNFS from 'react-native-fs';
 
-export const AUDIO_DOWNLOAD_DIR = `${RNFS.DocumentDirectoryPath}/audio-lessons`;
+/**
+ * Lazy accessor for react-native-fs.
+ * The module is NOT available inside Expo Go (its native NativeEventEmitter
+ * instantiation crashes at load-time), so we defer the require until it is
+ * actually called at runtime – which only happens in dev-client / standalone
+ * builds where the native module exists.
+ */
+const getRNFS = (): typeof import('react-native-fs').default => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  return require('react-native-fs').default ?? require('react-native-fs');
+};
+
+const getAudioDownloadDir = () =>
+  `${getRNFS().DocumentDirectoryPath}/audio-lessons`;
 
 const getLessonFilePath = (lessonId: string) =>
-  `${AUDIO_DOWNLOAD_DIR}/${lessonId.replace(/[^a-zA-Z0-9-_]/g, '_')}.mp3`;
+  `${getAudioDownloadDir()}/${lessonId.replace(/[^a-zA-Z0-9-_]/g, '_')}.mp3`;
 
 const ensureDownloadDir = async () => {
-  const exists = await RNFS.exists(AUDIO_DOWNLOAD_DIR);
+  const RNFS = getRNFS();
+  const dir = getAudioDownloadDir();
+  const exists = await RNFS.exists(dir);
   if (!exists) {
-    await RNFS.mkdir(AUDIO_DOWNLOAD_DIR, {
+    await RNFS.mkdir(dir, {
       NSURLIsExcludedFromBackupKey: true,
     });
   }
@@ -22,6 +36,7 @@ export const downloadLessonAudio = (
   const toFile = getLessonFilePath(lesson.id);
 
   const start = async () => {
+    const RNFS = getRNFS();
     await ensureDownloadDir();
     const task = RNFS.downloadFile({
       fromUrl: lesson.audioUrl,
@@ -46,3 +61,6 @@ export const downloadLessonAudio = (
 
   return { start };
 };
+
+/** Re-export dir path getter for external consumers */
+export const AUDIO_DOWNLOAD_DIR = getAudioDownloadDir;

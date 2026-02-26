@@ -1,10 +1,69 @@
 import { MMKV_ENCRYPTION_KEY } from '@env';
-import { createMMKV } from 'react-native-mmkv';
 
-export const storage = createMMKV({
-  id: 'yakine-audio-learner',
-  encryptionKey: MMKV_ENCRYPTION_KEY,
-});
+type StorageLike = {
+  getString: (key: string) => string | undefined;
+  set: (key: string, value: string) => void;
+  delete: (key: string) => void;
+};
+
+const memoryStorage = new Map<string, string>();
+
+const createStorage = (): StorageLike => {
+  let isExpoGo = false;
+
+  try {
+    const constantsModule = require('expo-constants') as {
+      default?: { appOwnership?: string };
+      appOwnership?: string;
+    };
+    const constants = constantsModule.default ?? constantsModule;
+    isExpoGo = constants.appOwnership === 'expo';
+  } catch {
+    isExpoGo = false;
+  }
+
+  if (isExpoGo) {
+    return {
+      getString: key => memoryStorage.get(key),
+      set: (key, value) => {
+        memoryStorage.set(key, value);
+      },
+      delete: key => {
+        memoryStorage.delete(key);
+      },
+    };
+  }
+
+  try {
+    const mmkvModule = require('react-native-mmkv') as {
+      createMMKV: (args: {
+        id: string;
+        encryptionKey?: string;
+      }) => {
+        getString: (key: string) => string | undefined;
+        set: (key: string, value: string) => void;
+        delete: (key: string) => void;
+      };
+    };
+
+    return mmkvModule.createMMKV({
+      id: 'yakine-audio-learner',
+      encryptionKey: MMKV_ENCRYPTION_KEY,
+    });
+  } catch {
+    return {
+      getString: key => memoryStorage.get(key),
+      set: (key, value) => {
+        memoryStorage.set(key, value);
+      },
+      delete: key => {
+        memoryStorage.delete(key);
+      },
+    };
+  }
+};
+
+export const storage = createStorage();
 
 export const storageKeys = {
   themeMode: 'theme.mode',

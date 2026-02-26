@@ -42,6 +42,18 @@ const MainTabs = () => {
           fontSize: 18,
           ...DefaultStyles.fonts.medium,
         },
+        headerStyle: {
+          backgroundColor: colors.background,
+        },
+        tabBarStyle: {
+          backgroundColor: colors.tabBar,
+          borderTopColor: colors.tabBarBorder,
+          borderTopWidth: 0.5,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.muted,
       }}>
       <Tab.Screen
         name="Home"

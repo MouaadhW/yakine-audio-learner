@@ -180,11 +180,12 @@ const HomeScreen = () => {
             <View
               style={{
                 ...styles.searchContainer,
+                backgroundColor: colors.inputBackground,
               }}>
-              <SearchIcon color={'dimgray'} />
+              <SearchIcon color={colors.muted} />
               <TextInput
-                style={{ ...styles.searchInput }}
-                placeholderTextColor={'dimgray'}
+                style={{ ...styles.searchInput, color: colors.text }}
+                placeholderTextColor={colors.muted}
                 placeholder={t('browseCourses')}
                 readOnly
                 pointerEvents="none"
@@ -284,7 +285,6 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     paddingHorizontal: 16,
     height: 46,
-    backgroundColor: 'rgba(150, 150, 150, 0.15)',
   },
   searchInput: {
     flex: 1,

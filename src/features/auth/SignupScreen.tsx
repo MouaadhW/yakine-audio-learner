@@ -97,7 +97,7 @@ const SignupScreen = ({ navigation }: Props) => {
 
     try {
       const response = await makeApiRequest({
-        url: '/auth/register',
+        url: '/api/auth/register',
         options: {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

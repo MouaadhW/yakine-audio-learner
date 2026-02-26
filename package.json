@@ -14,7 +14,8 @@
     "expo:go": "expo start --go -c",
     "expo:android": "expo run:android",
     "expo:ios": "expo run:ios",
-    "test": "jest"
+    "test": "jest",
+    "postinstall": "node scripts/patch-native-modules.js"
   },
   "dependencies": {
     "@notifee/react-native": "^9.1.8",

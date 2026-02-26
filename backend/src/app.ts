@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import { z } from 'zod';
 import { authRouter } from './routes/auth.routes';
 import { subjectRouter } from './routes/subject.routes';
+import { chapterRouter } from './routes/chapter.routes';
 import { lessonRouter } from './routes/lesson.routes';
 import { progressRouter } from './routes/progress.routes';
 import { downloadRouter } from './routes/download.routes';
@@ -24,6 +25,7 @@ app.get('/health', (_req, res) => {
 
 app.use('/api/auth', authRouter);
 app.use('/api/subjects', subjectRouter);
+app.use('/api/chapters', chapterRouter);
 app.use('/api/lessons', lessonRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/downloads', downloadRouter);

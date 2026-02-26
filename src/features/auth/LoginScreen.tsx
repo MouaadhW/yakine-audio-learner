@@ -77,7 +77,7 @@ const LoginScreen = ({ navigation }: Props) => {
 
     try {
       const response = await makeApiRequest({
-        url: '/auth/login',
+        url: '/api/auth/login',
         options: {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
