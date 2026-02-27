@@ -4,8 +4,11 @@ import { Chip } from '@/components/ui/Chip';
 import { useEffect, useRef } from 'react';
 import { Animated, FlatList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
 import { selectTheme } from '../themeSlice';
 import { useAppSelector } from '@/lib/hooks';
+import { getSubjects } from '@/lib/services/BacApi';
+import { BACSubject } from '@/lib/models';
 
 interface BlogListScreenHeaderProps {
   headerProps: BottomTabHeaderProps;
@@ -21,6 +24,12 @@ const BlogListScreenHeader = ({ headerProps }: BlogListScreenHeaderProps) => {
   );
 
   const { dark, colors } = useAppSelector(selectTheme);
+
+  const { data: subjects } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: () => getSubjects(),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const marginTop = useRef(new Animated.Value(0)).current;
 
@@ -46,7 +55,7 @@ const BlogListScreenHeader = ({ headerProps }: BlogListScreenHeaderProps) => {
     <>
       <Header
         {...headerProps.options}
-        title="Blogs"
+        title="Subjects"
         headerShadowVisible={false}
         headerStyle={{
           backgroundColor: dark ? colors.card : colors.primary,
@@ -59,11 +68,16 @@ const BlogListScreenHeader = ({ headerProps }: BlogListScreenHeaderProps) => {
           borderBottomColor: colors.border,
         }}>
         <FlatList
-          data={[1, 2, 3]}
-          renderItem={item => {
-            return <Chip title="DevOps" onPress={() => {}} />;
+          data={subjects ?? []}
+          renderItem={({ item }: { item: BACSubject }) => {
+            return (
+              <Chip
+                title={`${item.icon ?? '📚'} ${item.nameEn}`}
+                onPress={() => {}}
+              />
+            );
           }}
-          keyExtractor={item => item.toString()}
+          keyExtractor={item => item.id}
           horizontal={true}
           ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
           showsHorizontalScrollIndicator={false}

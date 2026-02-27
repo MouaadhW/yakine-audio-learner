@@ -1,30 +1,33 @@
-import { PostRecentItem } from '@/components/blog/PostRecentItem';
-import { TopCourseItem } from '@/components/course/TopCourseItem';
 import { DefaultStyles } from '@/components/styles';
 import { Chip } from '@/components/ui/Chip';
-import { ErrorView } from '@/components/ui/ErrorView';
-import { Loading } from '@/components/ui/Loading';
 import { Spacer } from '@/components/ui/Spacer';
 import { Text } from '@/components/ui/Text';
 import { useAppSelector } from '@/lib/hooks';
-import { sampleCategoryPage, sampleCoursePage, samplePostPage } from '@/lib/mockData';
-import { Course, Post } from '@/lib/models';
-import { getActiveAnnouncements, Announcement } from '@/lib/services/AdminApi';
-import { getPosts } from '@/lib/services/BlogApi';
-import { getCategories } from '@/lib/services/CategoryApi';
-import { getCourses } from '@/lib/services/CourseApi';
+import { BACSubject, BACLesson } from '@/lib/models';
+import { getActiveAnnouncements } from '@/lib/services/AdminApi';
+import { getSubjects } from '@/lib/services/BacApi';
+import { makeApiRequest } from '@/lib/makeApiRequest';
+import { validateApiResponse } from '@/lib/validateApiResponse';
 import { BottomTabParamList, RootStackParamList } from '@/navigations';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
-import { SearchIcon, InfoIcon, AlertTriangleIcon, XIcon } from 'lucide-react-native';
+import {
+  SearchIcon,
+  InfoIcon,
+  AlertTriangleIcon,
+  XIcon,
+  BookOpenIcon,
+  HeadphonesIcon,
+  ClockIcon,
+} from 'lucide-react-native';
 import type { PropsWithChildren } from 'react';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Dimensions,
   FlatList,
-  ListRenderItemInfo,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -35,33 +38,18 @@ import {
 } from 'react-native';
 import { selectTheme } from '../themeSlice';
 
-const fetchHomeData = async (signal?: AbortSignal) => {
-  const categoriesPromise = getCategories(
-    {
-      limit: 5,
-    },
-    signal,
-  );
+const screen = Dimensions.get('window');
 
-  const topCoursesPromise = getCourses(
-    { orderBy: 'enrollment', limit: 5 },
-    signal,
-  );
-
-  const recentPostsPromise = getPosts(
-    {
-      orderBy: 'publishedAt',
-      limit: 5,
-    },
-    signal,
-  );
-
-  return await Promise.all([
-    categoriesPromise,
-    topCoursesPromise,
-    recentPostsPromise,
-  ]);
-};
+/** Fetch recent lessons from the backend */
+async function fetchRecentLessons(signal?: AbortSignal): Promise<BACLesson[]> {
+  const resp = await makeApiRequest({
+    url: '/api/lessons?limit=6&status=PUBLISHED',
+    options: { signal },
+  });
+  await validateApiResponse(resp);
+  const page = await resp.json();
+  return (page.contents ?? []) as BACLesson[];
+}
 
 type HeadingProps = PropsWithChildren<{
   title: string;
@@ -101,7 +89,8 @@ const Heading = ({ title, seeAll }: HeadingProps) => {
 
 const HomeScreen = () => {
   const { colors } = useAppSelector(selectTheme);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isFr = i18n.language === 'fr';
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const rootNavigation =
@@ -120,36 +109,92 @@ const HomeScreen = () => {
     a => !dismissedIds.has(a.id),
   );
 
-  const themeStyle = {
-    backgroundColor: colors.background,
-  };
-
-  const { data, error, isFetching, isLoadingError, refetch } = useQuery({
-    queryKey: ['/content/home'],
-    queryFn: ({ signal }) => fetchHomeData(signal),
-    placeholderData: [sampleCategoryPage, sampleCoursePage, samplePostPage],
+  const {
+    data: subjects,
+    error: subjectsError,
+    isFetching: subjectsFetching,
+    refetch: refetchSubjects,
+  } = useQuery({
+    queryKey: ['subjects'],
+    queryFn: ({ signal }) => getSubjects(signal),
+    staleTime: 5 * 60 * 1000,
   });
 
-  const renderCourseItem = (info: ListRenderItemInfo<Course>) => {
-    return <TopCourseItem value={info.item} />;
+  const {
+    data: recentLessons,
+    isFetching: lessonsFetching,
+    refetch: refetchLessons,
+  } = useQuery({
+    queryKey: ['recent-lessons'],
+    queryFn: ({ signal }) => fetchRecentLessons(signal),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const isFetching = subjectsFetching || lessonsFetching;
+
+  const handleRefresh = () => {
+    refetchSubjects();
+    refetchLessons();
   };
 
-  const renderPostItem = (info: ListRenderItemInfo<Post>) => {
-    return <PostRecentItem value={info.item} />;
+  const themeStyle = { backgroundColor: colors.background };
+
+  const formatDuration = (sec: number) => {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   };
+
+  const renderSubjectCard = ({ item }: { item: BACSubject }) => (
+    <TouchableOpacity
+      style={[
+        homeStyles.subjectCard,
+        { backgroundColor: (item.color ?? colors.primary) + '14', borderColor: (item.color ?? colors.primary) + '30' },
+      ]}
+      activeOpacity={0.7}
+      onPress={() => rootNavigation.navigate('ChapterList', { subjectId: item.id })}>
+      <Text style={homeStyles.subjectIcon}>{item.icon ?? '📚'}</Text>
+      <Text style={[homeStyles.subjectName, { color: colors.text }]} numberOfLines={1}>
+        {isFr ? item.nameFr : item.nameEn}
+      </Text>
+      <Text style={[homeStyles.subjectMeta, { color: colors.muted }]}>
+        {item.chapterCount ?? 0} {t('chapters') ?? 'chapters'}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const renderLessonCard = ({ item }: { item: BACLesson }) => (
+    <TouchableOpacity
+      style={[
+        homeStyles.lessonCard,
+        { backgroundColor: colors.card, borderColor: colors.border },
+      ]}
+      activeOpacity={0.7}
+      onPress={() => rootNavigation.navigate('AudioPlayer', { lesson: item })}>
+      <View style={[homeStyles.lessonIconCircle, { backgroundColor: colors.primary + '18' }]}>
+        <HeadphonesIcon size={20} color={colors.primary} />
+      </View>
+      <Text style={[homeStyles.lessonTitle, { color: colors.text }]} numberOfLines={2}>
+        {isFr ? item.titleFr : item.titleEn}
+      </Text>
+      <View style={homeStyles.lessonFooter}>
+        <ClockIcon size={12} color={colors.muted} />
+        <Text style={[homeStyles.lessonDuration, { color: colors.muted }]}>
+          {formatDuration(item.duration)}
+        </Text>
+      </View>
+      {item.teacherName ? (
+        <Text style={[homeStyles.lessonTeacher, { color: colors.muted }]} numberOfLines={1}>
+          🎙️ {item.teacherName}
+        </Text>
+      ) : null}
+    </TouchableOpacity>
+  );
 
   const listItemSeparator = () => <View style={{ width: 10 }} />;
 
   const content = () => {
-    const homeData = data ?? [sampleCategoryPage, sampleCoursePage, samplePostPage];
-    const [homeCategories, homeCourses, homePosts] = homeData;
-    const showOfflineNotice = !!error && isLoadingError;
-
-    const categories =
-      homeCategories.contents.length > 0 ? homeCategories : sampleCategoryPage;
-    const courses =
-      homeCourses.contents.length > 0 ? homeCourses : sampleCoursePage;
-    const posts = homePosts.contents.length > 0 ? homePosts : samplePostPage;
+    const showOfflineNotice = !!subjectsError;
 
     return (
       <ScrollView
@@ -160,17 +205,11 @@ const HomeScreen = () => {
             refreshing={isFetching}
             colors={[colors.primary]}
             tintColor={colors.primary}
-            onRefresh={() => {
-              refetch();
-            }}
+            onRefresh={handleRefresh}
           />
         }>
         <View style={[themeStyle, styles.container]}>
-          <Text
-            style={{
-              ...styles.searchTitle,
-              color: colors.text,
-            }}>
+          <Text style={{ ...styles.searchTitle, color: colors.text }}>
             {t('whatDoYouWantToLearn')}
           </Text>
 
@@ -183,8 +222,7 @@ const HomeScreen = () => {
               error: { bg: '#ef444420', fg: '#ef4444' },
             };
             const tc = typeColors[ann.type] ?? typeColors.info;
-            const BannerIcon =
-              ann.type === 'warning' ? AlertTriangleIcon : InfoIcon;
+            const BannerIcon = ann.type === 'warning' ? AlertTriangleIcon : InfoIcon;
             return (
               <View
                 key={ann.id}
@@ -199,29 +237,17 @@ const HomeScreen = () => {
                 }}>
                 <BannerIcon size={18} color={tc.fg} style={{ marginTop: 2 }} />
                 <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontWeight: '600',
-                      fontSize: 14,
-                      color: tc.fg,
-                    }}>
+                  <Text style={{ fontWeight: '600', fontSize: 14, color: tc.fg }}>
                     {ann.title}
                   </Text>
                   {ann.body ? (
-                    <Text
-                      style={{
-                        fontSize: 13,
-                        color: colors.text,
-                        marginTop: 2,
-                      }}>
+                    <Text style={{ fontSize: 13, color: colors.text, marginTop: 2 }}>
                       {ann.body}
                     </Text>
                   ) : null}
                 </View>
                 <TouchableOpacity
-                  onPress={() =>
-                    setDismissedIds(prev => new Set(prev).add(ann.id))
-                  }
+                  onPress={() => setDismissedIds(prev => new Set(prev).add(ann.id))}
                   hitSlop={8}>
                   <XIcon size={16} color={colors.muted} />
                 </TouchableOpacity>
@@ -232,23 +258,15 @@ const HomeScreen = () => {
           {showOfflineNotice && (
             <>
               <Spacer orientation="vertical" spacing={8} />
-              <Text style={{ color: colors.muted }}>
-                {t('offlineNotice')}
-              </Text>
+              <Text style={{ color: colors.muted }}>{t('offlineNotice')}</Text>
             </>
           )}
 
           <Spacer orientation="vertical" spacing={10} />
 
           <TouchableWithoutFeedback
-            onPress={() => {
-              rootNavigation.navigate('CourseList');
-            }}>
-            <View
-              style={{
-                ...styles.searchContainer,
-                backgroundColor: colors.inputBackground,
-              }}>
+            onPress={() => rootNavigation.navigate('SubjectList')}>
+            <View style={{ ...styles.searchContainer, backgroundColor: colors.inputBackground }}>
               <SearchIcon color={colors.muted} />
               <TextInput
                 style={{ ...styles.searchInput, color: colors.text }}
@@ -262,54 +280,56 @@ const HomeScreen = () => {
 
           <Spacer orientation="vertical" spacing={24} />
 
-          <Heading title={t('categories')} seeAll={() => {}} />
-
+          {/* ─── Subjects (Categories) ─── */}
+          <Heading title={t('categories')} seeAll={() => rootNavigation.navigate('SubjectList')} />
           <Spacer orientation="vertical" spacing={12} />
-
           <View style={styles.categoryContainer}>
-            {categories.contents.map((c, i) => {
-              return <Chip key={i} title={c.name} onPress={() => {}} />;
-            })}
+            {(subjects ?? []).map(s => (
+              <Chip
+                key={s.id}
+                title={`${s.icon ?? '📚'} ${isFr ? s.nameFr : s.nameEn}`}
+                onPress={() => rootNavigation.navigate('ChapterList', { subjectId: s.id })}
+              />
+            ))}
           </View>
 
           <Spacer orientation="vertical" spacing={24} />
 
+          {/* ─── Subjects Cards ─── */}
           <Heading
-              title={t('topCourses')}
-            seeAll={() => {
-              rootNavigation.navigate('CourseList');
-            }}
+            title={t('topCourses')}
+            seeAll={() => rootNavigation.navigate('SubjectList')}
           />
-
           <Spacer orientation="vertical" spacing={12} />
-
           <FlatList
-            data={courses.contents}
-            renderItem={renderCourseItem}
-            keyExtractor={item => item.id.toString()}
-            horizontal={true}
+            data={subjects ?? []}
+            renderItem={renderSubjectCard}
+            keyExtractor={item => item.id}
+            horizontal
             ItemSeparatorComponent={listItemSeparator}
             showsHorizontalScrollIndicator={false}
           />
 
           <Spacer orientation="vertical" spacing={24} />
 
+          {/* ─── Recent Lessons ─── */}
           <Heading
-              title={t('recentPosts')}
-            seeAll={() => {
-              tabNavigation.navigate('Subjects');
-            }}
+            title={t('recentPosts')}
+            seeAll={() => tabNavigation.navigate('Subjects')}
           />
-
           <Spacer orientation="vertical" spacing={12} />
-
           <FlatList
-            data={posts.contents}
-            renderItem={renderPostItem}
-            keyExtractor={item => item.id.toString()}
-            horizontal={true}
+            data={recentLessons ?? []}
+            renderItem={renderLessonCard}
+            keyExtractor={item => item.id}
+            horizontal
             ItemSeparatorComponent={listItemSeparator}
             showsHorizontalScrollIndicator={false}
+            ListEmptyComponent={
+              <Text style={{ color: colors.muted, fontSize: 13 }}>
+                {t('noLessonsYet') ?? 'No lessons yet'}
+              </Text>
+            }
           />
         </View>
       </ScrollView>
@@ -363,6 +383,38 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
+});
+
+const homeStyles = StyleSheet.create({
+  subjectCard: {
+    width: screen.width * 0.38,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    alignItems: 'center',
+    gap: 6,
+  },
+  subjectIcon: { fontSize: 28 },
+  subjectName: { fontSize: 14, fontWeight: '600', textAlign: 'center' },
+  subjectMeta: { fontSize: 12 },
+  lessonCard: {
+    width: screen.width * 0.56,
+    borderRadius: 14,
+    borderWidth: 0.7,
+    padding: 14,
+    gap: 6,
+  },
+  lessonIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lessonTitle: { fontSize: 14, fontWeight: '600' },
+  lessonFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  lessonDuration: { fontSize: 12 },
+  lessonTeacher: { fontSize: 11, marginTop: 2 },
 });
 
 export default HomeScreen;

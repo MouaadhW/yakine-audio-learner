@@ -2,8 +2,8 @@ import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from './Text';
 import { useAppSelector } from '@/lib/hooks';
-import { selectAudioPlayer } from '@/features/audioPlayerSlice';
 import { selectTheme } from '@/features/themeSlice';
+import { useAudio } from '@/contexts/AudioContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigations';
@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const MiniPlayer = () => {
-  const { currentLesson, isPlaying, position, duration } = useAppSelector(selectAudioPlayer);
+  const { currentLesson, isPlaying, position, duration, togglePlay } = useAudio();
   const { colors } = useAppSelector(selectTheme);
   const navigation = useNavigation<Nav>();
   const { i18n } = useTranslation();
@@ -55,14 +55,18 @@ const MiniPlayer = () => {
           </Text>
         </View>
 
-        <View
+        <TouchableOpacity
+          onPress={e => {
+            e.stopPropagation?.();
+            togglePlay();
+          }}
           style={[styles.playBtn, { backgroundColor: colors.primary + '20' }]}>
           {isPlaying ? (
             <PauseIcon size={18} color={colors.primary} />
           ) : (
             <PlayIcon size={18} color={colors.primary} />
           )}
-        </View>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );

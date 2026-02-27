@@ -1,5 +1,7 @@
 import { API_URL } from '@env';
 import { mmkv, storageKeys } from './storage/mmkv';
+import { store } from './store';
+import { logout } from '@/features/auth/authSlice';
 
 interface MakeApiRequestProps {
   url: string;
@@ -85,12 +87,18 @@ export async function makeApiRequest({
                 return retryResponse;
               }
             }
+            // Refresh token rejected — force logout
+            store.dispatch(logout());
           } finally {
             clearTimeout(refreshTimeoutId);
           }
         } catch (refreshError) {
           console.warn('Token refresh failed:', refreshError);
+          store.dispatch(logout());
         }
+      } else {
+        // No refresh token available — force logout
+        store.dispatch(logout());
       }
     }
 

@@ -15,6 +15,7 @@ import {
 import Toast from 'react-native-toast-message';
 import { Provider } from 'react-redux';
 import MainNavigation from './MainNavigation';
+import { AudioProvider } from './contexts/AudioContext';
 import { ApiError } from './lib/errors';
 import { store } from './lib/store';
 
@@ -109,7 +110,9 @@ const App = () => {
     <Provider store={store}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <QueryClientProvider client={queryClient}>
-          <MainNavigation />
+          <AudioProvider>
+            <MainNavigation />
+          </AudioProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </Provider>

@@ -13,7 +13,9 @@ import {
   createLesson,
   updateLesson,
   deleteLesson,
+  getProgress,
 } from '@/lib/services/BacApi';
+import { ProgressEntry } from '@/lib/models';
 import {
   getAllLessonDownloadMetadata,
   upsertLessonDownloadMetadata,
@@ -79,20 +81,35 @@ const LessonListScreen = ({ route, navigation }: Props) => {
     placeholderData: [],
   });
 
+  // Fetch user progress so we can show the completed badge
+  const { data: progressList } = useQuery({
+    queryKey: ['progress'],
+    queryFn: ({ signal }) => getProgress(signal),
+    staleTime: 60 * 1000,
+  });
+
+  const progressMap = useMemo(() => {
+    const map = new Map<string, ProgressEntry>();
+    (progressList ?? []).forEach(p => map.set(p.lessonId, p));
+    return map;
+  }, [progressList]);
+
   const lessons = useMemo(
     () =>
       (apiLessons ?? [])
         .map(lesson => {
           const metadata = downloadMap[lesson.id];
+          const progress = progressMap.get(lesson.id);
           return {
             ...lesson,
+            completed: progress?.completed ?? false,
             downloadedPath:
               metadata?.status === 'downloaded' ? metadata.localPath : undefined,
             downloadStatus: metadata?.status ?? 'not_downloaded',
             downloadProgress: metadata?.progress ?? 0,
           };
         }),
-    [apiLessons, downloadMap],
+    [apiLessons, downloadMap, progressMap],
   );
 
   // Can user edit this lesson?
