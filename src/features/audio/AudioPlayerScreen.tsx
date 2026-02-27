@@ -2,14 +2,23 @@ import { Text } from '@/components/ui/Text';
 import {
   selectAudioPlayer,
   setCurrentLesson,
+  setDuration as syncDuration,
   setIsPlaying,
   setIsReady,
+  setPosition as syncPosition,
   setSpeed,
 } from '@/features/audioPlayerSlice';
 import { selectTheme } from '@/features/themeSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import { saveProgress } from '@/lib/services/BacApi';
 import { RootStackParamList } from '@/navigations';
 import Slider from '@react-native-community/slider';
+import {
+  useAudioPlayer,
+  useAudioPlayerStatus,
+  setAudioModeAsync,
+} from 'expo-audio';
+import type { AudioPlayer } from 'expo-audio';
 import {
   PauseIcon,
   PlayIcon,
@@ -29,60 +38,10 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type RNTrackPlayer from 'react-native-track-player';
 
-type TrackPlayerLike = {
-  reset: () => Promise<void>;
-  add: (track: {
-    id: string;
-    url: string;
-    title: string;
-    artist: string;
-    duration: number;
-  }) => Promise<void>;
-  setRate: (value: number) => Promise<void>;
-  play: () => Promise<void>;
-  pause: () => Promise<void>;
-  seekTo: (value: number) => Promise<void>;
-  getPosition: () => Promise<number>;
-  getDuration: () => Promise<number>;
-};
-
-type ExpoAvLike = {
-  Audio: {
-    setAudioModeAsync: (mode: {
-      playsInSilentModeIOS?: boolean;
-      staysActiveInBackground?: boolean;
-    }) => Promise<void>;
-    Sound: {
-      createAsync: (
-        source: { uri: string },
-        initialStatus: {
-          shouldPlay?: boolean;
-          rate?: number;
-          shouldCorrectPitch?: boolean;
-          progressUpdateIntervalMillis?: number;
-        },
-        onPlaybackStatusUpdate?: (status: {
-          isLoaded: boolean;
-          isPlaying?: boolean;
-          positionMillis?: number;
-          durationMillis?: number | null;
-        }) => void,
-      ) => Promise<{ sound: ExpoSoundLike }>;
-    };
-  };
-};
-
-type ExpoSoundLike = {
-  pauseAsync: () => Promise<unknown>;
-  playAsync: () => Promise<unknown>;
-  setPositionAsync: (value: number) => Promise<unknown>;
-  setRateAsync: (
-    rate: number,
-    shouldCorrectPitch: boolean,
-  ) => Promise<unknown>;
-  unloadAsync: () => Promise<unknown>;
-};
+/** Real type from react-native-track-player (type-only import, erased at compile time) */
+type TrackPlayerAPI = typeof RNTrackPlayer;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AudioPlayer'>;
 
@@ -106,26 +65,67 @@ const AudioPlayerScreen = ({ route }: Props) => {
   const { i18n } = useTranslation();
   const isFr = i18n.language === 'fr';
 
-  const [isPlaying, setIsPlayingLocal] = useState(false);
+  const [isPlayingLocal, setIsPlayingLocal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(lesson.duration);
   const [isTrackPlayerAvailable, setIsTrackPlayerAvailable] = useState(false);
-  const trackPlayerRef = useRef<TrackPlayerLike | null>(null);
-  const expoSoundRef = useRef<ExpoSoundLike | null>(null);
+  const trackPlayerRef = useRef<TrackPlayerAPI | null>(null);
   const speedRef = useRef(speed);
 
   const [searchQuery, setSearchQuery] = useState('');
   const tabAnim = useRef(new Animated.Value(0)).current;
   const [activeTab, setActiveTab] = useState<'player' | 'script'>('player');
 
+  // Progress saving refs
+  const positionRef = useRef(0);
+  const durationRef = useRef(lesson.duration);
+
   const script = isFr ? lesson.scriptFr : lesson.scriptEn;
   const title = isFr ? lesson.titleFr : lesson.titleEn;
 
-  // Keep speedRef in sync so cycleSpeed and initial load use the latest value
+  // ── expo-audio hook (always created — used when TrackPlayer unavailable) ──
+  const audioSource = lesson.downloadedPath ?? lesson.audioUrl;
+  const expoPlayer = useAudioPlayer(audioSource, { updateInterval: 500 });
+  const expoStatus = useAudioPlayerStatus(expoPlayer);
+  // Whether we're actually using the expo-audio player (vs TrackPlayer)
+  const [useExpoAudio, setUseExpoAudio] = useState(false);
+
+  // Keep refs in sync
   useEffect(() => {
     speedRef.current = speed;
   }, [speed]);
+
+  useEffect(() => {
+    positionRef.current = position;
+  }, [position]);
+
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
+
+  // Sync position/duration to Redux for the MiniPlayer
+  useEffect(() => {
+    dispatch(syncPosition(position));
+  }, [position, dispatch]);
+
+  useEffect(() => {
+    dispatch(syncDuration(duration));
+  }, [duration, dispatch]);
+
+  // ── Sync expo-audio status into local state when using expo-audio ──
+  useEffect(() => {
+    if (!useExpoAudio) return;
+    if (expoStatus.isLoaded && isLoading) {
+      setIsLoading(false);
+      dispatch(setIsReady(true));
+    }
+    setPosition(expoStatus.currentTime);
+    if (expoStatus.duration > 0) {
+      setDuration(expoStatus.duration);
+    }
+    setIsPlayingLocal(expoStatus.playing);
+  }, [useExpoAudio, expoStatus, isLoading, dispatch]);
 
   useEffect(() => {
     const isExpoGoRuntime = () => {
@@ -141,14 +141,14 @@ const AudioPlayerScreen = ({ route }: Props) => {
       }
     };
 
-    const loadTrackPlayer = (): TrackPlayerLike | null => {
+    const loadTrackPlayer = (): TrackPlayerAPI | null => {
       if (isExpoGoRuntime()) {
         return null;
       }
 
       try {
         const module = require('react-native-track-player') as {
-          default?: TrackPlayerLike;
+          default?: TrackPlayerAPI;
         };
         return module.default ?? null;
       } catch {
@@ -163,46 +163,22 @@ const AudioPlayerScreen = ({ route }: Props) => {
       const trackPlayer = loadTrackPlayer();
 
       if (!trackPlayer) {
+        // Use expo-audio (already created via hook)
         setIsTrackPlayerAvailable(false);
+        setUseExpoAudio(true);
         try {
-          const expoAv = require('expo-av') as ExpoAvLike;
-
-          await expoAv.Audio.setAudioModeAsync({
-            playsInSilentModeIOS: true,
-            staysActiveInBackground: false,
+          await setAudioModeAsync({
+            playsInSilentMode: true,
+            shouldPlayInBackground: false,
           });
 
-          const { sound } = await expoAv.Audio.Sound.createAsync(
-            { uri: lesson.downloadedPath ?? lesson.audioUrl },
-            {
-              shouldPlay: true,
-              rate: speedRef.current,
-              shouldCorrectPitch: true,
-              progressUpdateIntervalMillis: 500,
-            },
-            status => {
-              if (!status.isLoaded) {
-                return;
-              }
-
-              setPosition((status.positionMillis ?? 0) / 1000);
-              setDuration((status.durationMillis ?? lesson.duration * 1000) / 1000);
-              setIsPlayingLocal(status.isPlaying === true);
-            },
-          );
-
-          expoSoundRef.current = sound;
-          setDuration(lesson.duration);
-          setPosition(0);
+          expoPlayer.playbackRate = speedRef.current;
+          expoPlayer.shouldCorrectPitch = true;
+          expoPlayer.play();
           setIsPlayingLocal(true);
-          setIsLoading(false);
-          dispatch(setIsReady(true));
           dispatch(setIsPlaying(true));
         } catch (error) {
-          console.error('Expo AV load error:', error);
-          setDuration(lesson.duration);
-          setPosition(0);
-          setIsPlayingLocal(false);
+          console.error('Expo Audio load error:', error);
           setIsLoading(false);
           dispatch(setIsReady(false));
           dispatch(setIsPlaying(false));
@@ -212,6 +188,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
 
       trackPlayerRef.current = trackPlayer;
       setIsTrackPlayerAvailable(true);
+      setUseExpoAudio(false);
 
       try {
         await trackPlayer.reset();
@@ -236,17 +213,44 @@ const AudioPlayerScreen = ({ route }: Props) => {
     void loadTrack();
 
     return () => {
+      // Save progress on unmount
+      if (positionRef.current > 0) {
+        const isCompleted =
+          durationRef.current > 0 && positionRef.current / durationRef.current >= 0.9;
+        void saveProgress({
+          lessonId: lesson.id,
+          position: Math.floor(positionRef.current),
+          completed: isCompleted,
+        });
+      }
       if (trackPlayerRef.current) {
         void trackPlayerRef.current.pause();
       }
-      if (expoSoundRef.current) {
-        void expoSoundRef.current.unloadAsync();
-        expoSoundRef.current = null;
+      // expo-audio player is auto-released by the hook
+      if (expoPlayer) {
+        expoPlayer.pause();
       }
       setIsPlayingLocal(false);
       dispatch(setIsPlaying(false));
     };
   }, [dispatch, lesson, title]);
+
+  // Periodic progress save (every 15 seconds)
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (positionRef.current > 0) {
+        const isCompleted =
+          durationRef.current > 0 && positionRef.current / durationRef.current >= 0.9;
+        void saveProgress({
+          lessonId: lesson.id,
+          position: Math.floor(positionRef.current),
+          completed: isCompleted,
+        });
+      }
+    }, 15000);
+
+    return () => clearInterval(intervalId);
+  }, [lesson.id]);
 
   useEffect(() => {
     if (!trackPlayerRef.current || !isTrackPlayerAvailable) {
@@ -276,21 +280,15 @@ const AudioPlayerScreen = ({ route }: Props) => {
   }, [isTrackPlayerAvailable, lesson.duration]);
 
   useEffect(() => {
-    dispatch(setIsPlaying(isPlaying));
-  }, [dispatch, isPlaying]);
+    dispatch(setIsPlaying(isPlayingLocal));
+  }, [dispatch, isPlayingLocal]);
 
   const togglePlay = useCallback(async () => {
-    if (!trackPlayerRef.current && !expoSoundRef.current) {
-      return;
-    }
-
-    if (expoSoundRef.current) {
-      if (isPlaying) {
-        await expoSoundRef.current.pauseAsync();
-        setIsPlayingLocal(false);
+    if (useExpoAudio) {
+      if (isPlayingLocal) {
+        expoPlayer.pause();
       } else {
-        await expoSoundRef.current.playAsync();
-        setIsPlayingLocal(true);
+        expoPlayer.play();
       }
       return;
     }
@@ -300,46 +298,38 @@ const AudioPlayerScreen = ({ route }: Props) => {
       return;
     }
 
-    if (isPlaying) {
+    if (isPlayingLocal) {
       await trackPlayer.pause();
       setIsPlayingLocal(false);
     } else {
       await trackPlayer.play();
       setIsPlayingLocal(true);
     }
-  }, [isPlaying]);
+  }, [isPlayingLocal, useExpoAudio, expoPlayer]);
 
   const seekBy = useCallback(
     async (seconds: number) => {
-      if (!trackPlayerRef.current && !expoSoundRef.current) {
-        return;
-      }
-
       const pos = Math.max(0, Math.min(position + seconds, duration));
-      if (expoSoundRef.current) {
-        await expoSoundRef.current.setPositionAsync(pos * 1000);
+      if (useExpoAudio) {
+        expoPlayer.seekTo(pos);
       } else if (trackPlayerRef.current) {
         await trackPlayerRef.current.seekTo(pos);
       }
       setPosition(pos);
     },
-    [duration, position],
+    [duration, position, useExpoAudio, expoPlayer],
   );
 
   const cycleSpeed = useCallback(async () => {
-    if (!trackPlayerRef.current && !expoSoundRef.current) {
-      return;
-    }
-
     const idx = SPEEDS.indexOf(speed);
     const next = SPEEDS[(idx + 1) % SPEEDS.length];
-    if (expoSoundRef.current) {
-      await expoSoundRef.current.setRateAsync(next, true);
+    if (useExpoAudio) {
+      expoPlayer.playbackRate = next;
     } else if (trackPlayerRef.current) {
       await trackPlayerRef.current.setRate(next);
     }
     dispatch(setSpeed(next));
-  }, [dispatch, speed]);
+  }, [dispatch, speed, useExpoAudio, expoPlayer]);
 
   const switchTab = (tab: 'player' | 'script') => {
     setActiveTab(tab);
@@ -409,8 +399,8 @@ const AudioPlayerScreen = ({ route }: Props) => {
               maximumValue={duration || 1}
               value={position}
               onSlidingComplete={(val: number) => {
-                if (expoSoundRef.current) {
-                  void expoSoundRef.current.setPositionAsync(val * 1000);
+                if (useExpoAudio) {
+                  expoPlayer.seekTo(val);
                 } else if (trackPlayerRef.current) {
                   void trackPlayerRef.current.seekTo(val);
                 }
@@ -438,7 +428,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
               style={[styles.playBtn, { backgroundColor: colors.primary, opacity: isLoading ? 0.7 : 1 }]}> 
               {isLoading ? (
                 <ActivityIndicator size="large" color="#fff" />
-              ) : isPlaying ? (
+              ) : isPlayingLocal ? (
                 <PauseIcon size={32} color="#fff" fill="#fff" />
               ) : (
                 <PlayIcon size={32} color="#fff" fill="#fff" />
@@ -460,7 +450,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
             <Text style={[styles.speedText, { color: colors.primary }]}>{speed}x</Text>
           </TouchableOpacity>
 
-          {!isTrackPlayerAvailable && (
+          {useExpoAudio && (
             <Text style={{ color: colors.muted, fontSize: 12 }}>
               Using Expo audio fallback in Expo Go.
             </Text>

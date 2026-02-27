@@ -70,4 +70,13 @@ export default {
   lessons: 'Leçons',
   chapters: 'Chapitres',
   subjects: 'Matières',
+  continueLearning: 'Continuer l\'apprentissage',
+  completed: 'Terminé',
+  inProgress: 'En cours',
+  noProgressYet: 'Aucune leçon commencée.',
+  startListening: 'Commencez à écouter des leçons pour suivre votre progression ici.',
+  resume: 'Reprendre',
+  nowPlaying: 'En lecture',
+  minutesListened: 'min écoutées',
+  loadingSession: 'Chargement de votre session...',
 };

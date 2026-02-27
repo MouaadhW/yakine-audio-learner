@@ -21,23 +21,26 @@ import { makeApiRequest } from '@/lib/makeApiRequest';
 import { useState, useCallback } from 'react';
 import {
   UserIcon,
-  EnvelopeIcon,
-  PencilSquareIcon,
+  MailIcon,
+  SquarePenIcon,
   ChevronRightIcon,
-} from 'react-native-heroicons/outline';
-import {
+  ShieldCheckIcon,
   SunIcon,
   MoonIcon,
-  GlobeAltIcon,
-  ArrowRightOnRectangleIcon,
-} from 'react-native-heroicons/solid';
+  GlobeIcon,
+  LogOutIcon,
+} from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '@/navigations';
 
 const ProfileScreen = () => {
   const dispatch = useAppDispatch();
   const { t, i18n } = useTranslation();
   const { dark, colors } = useAppSelector(selectTheme);
   const user = useAppSelector(selectAuthUser);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? '');
@@ -150,7 +153,7 @@ const ProfileScreen = () => {
               ]}
               onPress={openEditModal}
               activeOpacity={0.7}>
-              <PencilSquareIcon size={14} color="#fff" />
+              <SquarePenIcon size={14} color="#fff" />
             </TouchableOpacity>
           </View>
 
@@ -190,7 +193,7 @@ const ProfileScreen = () => {
           ]}
           activeOpacity={0.7}
           onPress={openEditModal}>
-          <PencilSquareIcon size={16} color={colors.primary} />
+          <SquarePenIcon size={16} color={colors.primary} />
           <Text style={[styles.editProfileText, { color: colors.primary }]}>
             {t('editProfile')}
           </Text>
@@ -212,7 +215,7 @@ const ProfileScreen = () => {
           <View style={styles.settingRow}>
             <View style={styles.settingLeft}>
               <View style={[styles.settingIcon, { backgroundColor: '#6366f118' }]}>
-                <GlobeAltIcon size={18} color="#6366f1" />
+                <GlobeIcon size={18} color="#6366f1" />
               </View>
               <Text style={[styles.settingLabel, { color: colors.text }]}>
                 {t('language')}
@@ -357,7 +360,7 @@ const ProfileScreen = () => {
 
           <View style={styles.infoRow}>
             <View style={[styles.settingIcon, { backgroundColor: '#22c55e18' }]}>
-              <EnvelopeIcon size={18} color="#22c55e" />
+              <MailIcon size={18} color="#22c55e" />
             </View>
             <View style={styles.infoContent}>
               <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
@@ -371,6 +374,44 @@ const ProfileScreen = () => {
         </View>
       </View>
 
+      {/* ===== Admin Panel (ADMIN only) ===== */}
+      {user?.role === 'ADMIN' && (
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionTitle, { color: colors.textSecondary }]}>
+            {t('administration')}
+          </Text>
+
+          <TouchableOpacity
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 14,
+                paddingVertical: 14,
+                gap: 10,
+              },
+            ]}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('AdminPanel')}>
+            <View style={[styles.settingIcon, { backgroundColor: '#6366f118' }]}>
+              <ShieldCheckIcon size={18} color="#6366f1" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.settingLabel, { color: colors.text }]}>
+                Admin Panel
+              </Text>
+              <Text style={{ fontSize: 12, color: colors.muted, marginTop: 2 }}>
+                Manage users, content, flags & more
+              </Text>
+            </View>
+            <ChevronRightIcon size={18} color={colors.muted} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* ===== Logout ===== */}
       <View style={[styles.sectionContainer, { marginBottom: 40 }]}>
         <TouchableOpacity
@@ -383,7 +424,7 @@ const ProfileScreen = () => {
           ]}
           onPress={handleLogout}
           activeOpacity={0.7}>
-          <ArrowRightOnRectangleIcon size={20} color={colors.error} />
+          <LogOutIcon size={20} color={colors.error} />
           <Text style={[styles.logoutText, { color: colors.error }]}>
             {t('logout')}
           </Text>

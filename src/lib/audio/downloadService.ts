@@ -1,25 +1,63 @@
 import { BACLesson } from '@/lib/models';
 
 /**
- * Lazy accessor for react-native-fs.
- * The module is NOT available inside Expo Go (its native NativeEventEmitter
- * instantiation crashes at load-time), so we defer the require until it is
- * actually called at runtime – which only happens in dev-client / standalone
- * builds where the native module exists.
+ * Check whether we're running inside Expo Go, where native modules like
+ * react-native-fs are unavailable.
  */
-const getRNFS = (): typeof import('react-native-fs').default => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  return require('react-native-fs').default ?? require('react-native-fs');
+const isExpoGo = (): boolean => {
+  try {
+    const constantsModule = require('expo-constants') as {
+      default?: { appOwnership?: string };
+      appOwnership?: string;
+    };
+    const constants = constantsModule.default ?? constantsModule;
+    return constants.appOwnership === 'expo';
+  } catch {
+    return false;
+  }
 };
 
-const getAudioDownloadDir = () =>
-  `${getRNFS().DocumentDirectoryPath}/audio-lessons`;
+/**
+ * Lazy accessor for react-native-fs.
+ * The module is NOT available inside Expo Go (its native NativeEventEmitter
+ * instantiation crashes at load-time), so we defer the require AND guard
+ * against the Expo Go runtime.
+ */
+const getRNFS = (): typeof import('react-native-fs').default | null => {
+  if (isExpoGo()) {
+    return null;
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('react-native-fs');
+    return mod.default ?? mod ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/** Returns true when the native download module is available (dev-client / standalone). */
+export const isDownloadAvailable = (): boolean => {
+  return getRNFS() !== null;
+};
+
+const getAudioDownloadDir = () => {
+  const rnfs = getRNFS();
+  if (!rnfs) {
+    throw new Error('Downloads are not available in Expo Go');
+  }
+  return `${rnfs.DocumentDirectoryPath}/audio-lessons`;
+};
 
 const getLessonFilePath = (lessonId: string) =>
   `${getAudioDownloadDir()}/${lessonId.replace(/[^a-zA-Z0-9-_]/g, '_')}.mp3`;
 
 const ensureDownloadDir = async () => {
   const RNFS = getRNFS();
+  if (!RNFS) {
+    throw new Error('Downloads are not available in Expo Go');
+  }
   const dir = getAudioDownloadDir();
   const exists = await RNFS.exists(dir);
   if (!exists) {
@@ -33,10 +71,15 @@ export const downloadLessonAudio = (
   lesson: BACLesson,
   onProgress?: (progress: number) => void,
 ) => {
-  const toFile = getLessonFilePath(lesson.id);
-
   const start = async () => {
     const RNFS = getRNFS();
+    if (!RNFS) {
+      throw new Error(
+        'Downloading is not available in Expo Go. Use a dev-client or standalone build.',
+      );
+    }
+
+    const toFile = getLessonFilePath(lesson.id);
     await ensureDownloadDir();
     const task = RNFS.downloadFile({
       fromUrl: lesson.audioUrl,

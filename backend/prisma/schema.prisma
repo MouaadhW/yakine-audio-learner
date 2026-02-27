@@ -14,6 +14,8 @@ model User {
   password  String
   role      Role       @default(STUDENT)
   language  String     @default("fr")
+  banned    Boolean    @default(false)
+  lastLoginAt DateTime?
   createdAt DateTime   @default(now())
 
   lessons    Lesson[]   @relation("TeacherLessons")
@@ -57,22 +59,30 @@ model Chapter {
 }
 
 model Lesson {
-  id          String    @id @default(cuid())
+  id          String       @id @default(cuid())
   titleEn     String
   titleFr     String
   audioUrl    String
-  scriptEn    String    @db.Text
-  scriptFr    String    @db.Text
+  scriptEn    String       @db.Text
+  scriptFr    String       @db.Text
   duration    Int
-  sortOrder   Int       @default(0)
+  sortOrder   Int          @default(0)
+  status      LessonStatus @default(PUBLISHED)
   chapterId   String
-  chapter     Chapter   @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapter     Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   teacherId   String
-  teacher     User      @relation("TeacherLessons", fields: [teacherId], references: [id])
-  createdAt   DateTime  @default(now())
+  teacher     User         @relation("TeacherLessons", fields: [teacherId], references: [id])
+  createdAt   DateTime     @default(now())
 
   progress    Progress[]
   downloads   Download[]
+}
+
+enum LessonStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
 }
 
 model Progress {
@@ -96,4 +106,24 @@ model Download {
   lesson    Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String   @db.Text
+  type      String   @default("info")
+  active    Boolean  @default(true)
+  startsAt  DateTime @default(now())
+  endsAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+model FeatureFlag {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  enabled     Boolean  @default(false)
+  description String   @default("")
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 }

@@ -21,8 +21,6 @@ import { makeApiRequest } from '@/lib/makeApiRequest';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Signup'>;
 
-type UserRole = 'STUDENT' | 'TEACHER';
-
 const SignupScreen = ({ navigation }: Props) => {
   const dispatch = useAppDispatch();
   const { colors } = useAppSelector(selectTheme);
@@ -31,7 +29,6 @@ const SignupScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('STUDENT');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -101,7 +98,7 @@ const SignupScreen = ({ navigation }: Props) => {
         options: {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: username, email, password, role }),
+          body: JSON.stringify({ name: username, email, password }),
         },
       });
 
@@ -124,44 +121,6 @@ const SignupScreen = ({ navigation }: Props) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const renderRoleOption = (value: UserRole, label: string) => {
-    const isSelected = role === value;
-    return (
-      <TouchableOpacity
-        key={value}
-        style={[
-          styles.roleOption,
-          {
-            borderColor: isSelected ? colors.primary : colors.border,
-            backgroundColor: isSelected ? colors.primary + '12' : colors.card,
-          },
-        ]}
-        onPress={() => setRole(value)}
-        activeOpacity={0.7}>
-        <View
-          style={[
-            styles.roleRadio,
-            {
-              borderColor: isSelected ? colors.primary : colors.border,
-            },
-          ]}>
-          {isSelected && (
-            <View
-              style={[styles.roleRadioInner, { backgroundColor: colors.primary }]}
-            />
-          )}
-        </View>
-        <Text
-          style={[
-            styles.roleLabel,
-            { color: isSelected ? colors.primary : colors.text },
-          ]}>
-          {label}
-        </Text>
-      </TouchableOpacity>
-    );
   };
 
   return (
@@ -213,16 +172,6 @@ const SignupScreen = ({ navigation }: Props) => {
               </Text>
             </View>
           ) : null}
-
-          <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>
-              I am a
-            </Text>
-            <View style={styles.roleRow}>
-              {renderRoleOption('STUDENT', 'Student')}
-              {renderRoleOption('TEACHER', 'Teacher')}
-            </View>
-          </View>
 
           <View style={styles.inputGroup}>
             <Text style={[styles.label, { color: colors.muted }]}>
@@ -408,37 +357,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 15,
     ...DefaultStyles.fonts.regular,
-  },
-  roleRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  roleOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderWidth: 1.5,
-    borderRadius: 12,
-  },
-  roleRadio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  roleRadioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  roleLabel: {
-    fontSize: 15,
-    ...DefaultStyles.fonts.medium,
   },
   button: {
     height: 52,

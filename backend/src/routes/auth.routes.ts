@@ -6,9 +6,11 @@ import { prisma } from '../lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt';
 import { requireAuth } from '../middleware/auth';
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: isDev ? 200 : 20,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: 'Too many requests, please try again later' }
@@ -18,7 +20,6 @@ const registerSchema = z.object({
   email: z.string().email(),
   name: z.string().min(2),
   password: z.string().min(6),
-  role: z.enum(['STUDENT', 'TEACHER', 'ADMIN']).optional(),
   language: z.enum(['fr', 'en']).optional()
 });
 
@@ -55,7 +56,7 @@ authRouter.post('/register', authLimiter, async (req, res, next) => {
         email: input.email,
         name: input.name,
         password,
-        role: input.role,
+        role: 'STUDENT',
         language: input.language
       }
     });
@@ -95,6 +96,13 @@ authRouter.post('/login', authLimiter, async (req, res, next) => {
     if (!match) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    if (user.banned) {
+      return res.status(403).json({ message: 'Your account has been suspended' });
+    }
+
+    // Track last login
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
 
     const tokenPayload = { sub: user.id, role: user.role };
     const accessToken = signAccessToken(tokenPayload);

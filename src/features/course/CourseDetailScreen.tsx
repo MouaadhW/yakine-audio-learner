@@ -18,12 +18,11 @@ import { useEffect, useRef } from 'react';
 import {
   InteractionManager,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { selectTheme } from '../themeSlice';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CourseDetail'>;

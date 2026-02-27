@@ -7,7 +7,7 @@ import { selectTheme } from '@/features/themeSlice';
 import { selectAuthUser } from '@/features/auth/authSlice';
 import { useAppSelector } from '@/lib/hooks';
 import { BACLesson } from '@/lib/models';
-import { downloadLessonAudio } from '@/lib/audio/downloadService';
+import { downloadLessonAudio, isDownloadAvailable } from '@/lib/audio/downloadService';
 import {
   getLessonsByChapter,
   createLesson,
@@ -25,12 +25,15 @@ import {
   PencilIcon,
   PlayCircleIcon,
   Trash2Icon,
+  UploadIcon,
 } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import { uploadAudioFile } from '@/lib/services/BacApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LessonList'>;
 const PROGRESS_UPDATE_BUCKETS = 20;
@@ -68,6 +71,7 @@ const LessonListScreen = ({ route, navigation }: Props) => {
   const [editingLesson, setEditingLesson] = useState<BACLesson | null>(null);
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const { data: apiLessons, isLoading, error, refetch } = useQuery({
     queryKey: ['/api/lessons', chapterId],
@@ -141,6 +145,25 @@ const LessonListScreen = ({ route, navigation }: Props) => {
     },
     [t, queryClient, chapterId],
   );
+
+  const handleUploadAudio = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'audio/*',
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const file = result.assets[0];
+      setUploading(true);
+      const uploadResult = await uploadAudioFile(file.uri, file.name ?? 'audio.mp3');
+      setFormValues(prev => ({ ...prev, audioUrl: uploadResult.publicUrl }));
+      Alert.alert('Upload Complete', 'Audio file uploaded successfully');
+    } catch (e: any) {
+      Alert.alert('Upload Failed', e.message);
+    } finally {
+      setUploading(false);
+    }
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!formValues.titleEn || !formValues.titleFr) {
@@ -297,6 +320,7 @@ const LessonListScreen = ({ route, navigation }: Props) => {
               <Trash2Icon size={14} color={colors.error} />
             </TouchableOpacity>
           )}
+          {isDownloadAvailable() && (
           <TouchableOpacity
             style={styles.downloadAction}
             onPress={event => {
@@ -315,6 +339,7 @@ const LessonListScreen = ({ route, navigation }: Props) => {
               />
             )}
           </TouchableOpacity>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -351,6 +376,18 @@ const LessonListScreen = ({ route, navigation }: Props) => {
         deleteLabel={t('delete')}
         loading={saving}
       />
+      {showModal && canAdd && (
+        <TouchableOpacity
+          style={[styles.uploadFab, { backgroundColor: '#8b5cf6' }]}
+          onPress={handleUploadAudio}
+          disabled={uploading}
+          activeOpacity={0.8}>
+          <UploadIcon size={20} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600', marginLeft: 6 }}>
+            {uploading ? 'Uploading...' : 'Upload MP3'}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -385,6 +422,21 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  uploadFab: {
+    position: 'absolute',
+    bottom: 80,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
   },
 });
 

@@ -11,6 +11,14 @@ export type RootStackParamList = {
   ChapterList: { subjectId: string };
   LessonList: { chapterId: string };
   AudioPlayer: { lesson: BACLesson };
+  AdminPanel: undefined;
+  UserManagement: undefined;
+  Moderation: undefined;
+  Stats: undefined;
+  BulkImportExport: undefined;
+  Announcements: undefined;
+  FeatureFlags: undefined;
+  ContentManagement: undefined;
 };
 
 export type BottomTabParamList = {

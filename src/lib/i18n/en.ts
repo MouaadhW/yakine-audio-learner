@@ -70,4 +70,13 @@ export default {
   lessons: 'Lessons',
   chapters: 'Chapters',
   subjects: 'Subjects',
+  continueLearning: 'Continue Learning',
+  completed: 'Completed',
+  inProgress: 'In Progress',
+  noProgressYet: 'No lessons started yet.',
+  startListening: 'Start listening to lessons to track your progress here.',
+  resume: 'Resume',
+  nowPlaying: 'Now Playing',
+  minutesListened: 'min listened',
+  loadingSession: 'Loading your session...',
 };

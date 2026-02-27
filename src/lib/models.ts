@@ -23,6 +23,7 @@ export interface BACSubject {
   stream: BACStream;
   icon?: string;
   color?: string;
+  chapterCount?: number;
   chapters?: BACChapter[];
 }
 
@@ -63,6 +64,17 @@ export interface AudioPlayerState {
   duration: number;
   speed: number;
   isReady: boolean;
+}
+
+export interface ProgressEntry {
+  id: string;
+  userId: string;
+  lessonId: string;
+  position: number;
+  completed: boolean;
+  lesson: BACLesson;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Page<T = any> {

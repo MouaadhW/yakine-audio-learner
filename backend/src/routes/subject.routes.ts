@@ -33,8 +33,9 @@ subjectRouter.get('/', async (req, res, next) => {
     const [subjects, total] = await Promise.all([
       prisma.subject.findMany({
         include: {
+          _count: { select: { chapters: true } },
           chapters: {
-            include: { lessons: true },
+            include: { _count: { select: { lessons: true } } },
             orderBy: { sortOrder: 'asc' },
           },
         },
@@ -45,13 +46,21 @@ subjectRouter.get('/', async (req, res, next) => {
     ]);
 
     // Map to Page<T> format with CMS-compatible fields
-    const contents = subjects.map((s, i) => ({
+    const contents = subjects.map((s: any) => ({
       // BAC fields (used by SubjectListScreen)
-      ...s,
+      id: s.id,
+      nameEn: s.nameEn,
+      nameFr: s.nameFr,
+      slugEn: s.slugEn,
+      slugFr: s.slugFr,
+      stream: s.stream,
+      icon: s.icon,
+      color: s.color,
+      chapterCount: s._count.chapters,
       // CMS Category-compatible fields (used by HomeScreen)
       name: s.nameEn,
       slug: s.slugEn || s.id,
-      courseCount: String(s.chapters.reduce((sum, ch) => sum + ch.lessons.length, 0)),
+      courseCount: String(s.chapters.reduce((sum: number, ch: any) => sum + ch._count.lessons, 0)),
     }));
 
     return res.json({

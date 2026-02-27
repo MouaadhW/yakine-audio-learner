@@ -6,10 +6,10 @@ import { requireAuth, requireRole } from '../middleware/auth';
 const createLessonSchema = z.object({
   titleEn: z.string().min(2),
   titleFr: z.string().min(2),
-  audioUrl: z.string().url(),
-  scriptEn: z.string().min(10),
-  scriptFr: z.string().min(10),
-  duration: z.number().int().positive(),
+  audioUrl: z.string().url().optional().default(''),
+  scriptEn: z.string().optional().default(''),
+  scriptFr: z.string().optional().default(''),
+  duration: z.number().int().positive().optional().default(0),
   sortOrder: z.number().int().optional(),
   chapterId: z.string().min(1)
 });
@@ -26,10 +26,10 @@ const querySchema = z.object({
 const updateLessonSchema = z.object({
   titleEn: z.string().min(2).optional(),
   titleFr: z.string().min(2).optional(),
-  audioUrl: z.string().url().optional(),
-  scriptEn: z.string().min(10).optional(),
-  scriptFr: z.string().min(10).optional(),
-  duration: z.number().int().positive().optional(),
+  audioUrl: z.string().optional(),
+  scriptEn: z.string().optional(),
+  scriptFr: z.string().optional(),
+  duration: z.number().int().optional(),
   sortOrder: z.number().int().optional(),
 });
 
@@ -41,7 +41,8 @@ lessonRouter.get('/', async (req, res, next) => {
     const page = parseInt(query.page || '1');
     const limit = parseInt(query.limit || '15');
 
-    const where = {
+    const where: any = {
+      status: 'PUBLISHED',
       chapter: {
         id: query.chapterId,
         subjectId: query.subjectId,
@@ -74,7 +75,7 @@ lessonRouter.get('/', async (req, res, next) => {
     ]);
 
     // Map to Page<T> format with both BAC and CMS-compatible fields
-    const contents = lessons.map((l, i) => ({
+    const contents = lessons.map((l: any, i: number) => ({
       // BAC fields (used by LessonListScreen / AudioPlayer)
       ...l,
       teacherName: l.teacher?.name || 'Unknown Teacher',
@@ -146,7 +147,9 @@ lessonRouter.post('/', requireAuth, requireRole('TEACHER', 'ADMIN'), async (req,
     const lesson = await prisma.lesson.create({
       data: {
         ...input,
-        teacherId: req.auth!.userId
+        teacherId: req.auth!.userId,
+        // Teachers submit for review; admins publish directly
+        status: req.auth!.role === 'ADMIN' ? 'PUBLISHED' : 'PENDING_REVIEW',
       }
     });
 

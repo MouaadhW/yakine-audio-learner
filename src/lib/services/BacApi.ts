@@ -1,6 +1,8 @@
 import { makeApiRequest } from '../makeApiRequest';
-import { BACSubject, BACChapter, BACLesson, Page } from '../models';
+import { BACSubject, BACChapter, BACLesson, Page, ProgressEntry } from '../models';
 import { validateApiResponse } from '../validateApiResponse';
+import { API_URL } from '@env';
+import { mmkv, storageKeys } from '../storage/mmkv';
 
 /**
  * Fetch all subjects (with chapters and lesson counts).
@@ -194,4 +196,64 @@ export async function deleteLesson(id: string): Promise<void> {
     options: { method: 'DELETE' },
   });
   await validateApiResponse(resp);
+}
+
+// ─── Progress tracking ──────────────────────────────────────────────
+
+export async function getProgress(
+  signal?: AbortSignal,
+): Promise<ProgressEntry[]> {
+  const resp = await makeApiRequest({
+    url: '/api/progress',
+    options: { signal },
+  });
+  await validateApiResponse(resp);
+  return (await resp.json()) as ProgressEntry[];
+}
+
+export async function saveProgress(data: {
+  lessonId: string;
+  position: number;
+  completed?: boolean;
+}): Promise<void> {
+  const resp = await makeApiRequest({
+    url: '/api/progress',
+    options: {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    },
+  });
+  await validateApiResponse(resp);
+}
+
+// ─── Audio File Upload ──────────────────────────────────────────────
+
+export async function uploadAudioFile(
+  fileUri: string,
+  fileName: string,
+): Promise<{ path: string; publicUrl: string; filename: string }> {
+  const formData = new FormData();
+  formData.append('file', {
+    uri: fileUri,
+    name: fileName,
+    type: 'audio/mpeg',
+  } as any);
+
+  const accessToken = mmkv.getString(storageKeys.accessToken);
+
+  const response = await fetch(`${API_URL}/api/storage/upload`, {
+    method: 'POST',
+    headers: {
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ message: 'Upload failed' }));
+    throw new Error(err.message ?? 'Upload failed');
+  }
+
+  return response.json();
 }

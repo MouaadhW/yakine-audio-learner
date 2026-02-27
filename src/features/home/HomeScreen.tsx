@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text';
 import { useAppSelector } from '@/lib/hooks';
 import { sampleCategoryPage, sampleCoursePage, samplePostPage } from '@/lib/mockData';
 import { Course, Post } from '@/lib/models';
+import { getActiveAnnouncements, Announcement } from '@/lib/services/AdminApi';
 import { getPosts } from '@/lib/services/BlogApi';
 import { getCategories } from '@/lib/services/CategoryApi';
 import { getCourses } from '@/lib/services/CourseApi';
@@ -17,9 +18,9 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
-import { SearchIcon } from 'lucide-react-native';
+import { SearchIcon, InfoIcon, AlertTriangleIcon, XIcon } from 'lucide-react-native';
 import type { PropsWithChildren } from 'react';
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   FlatList,
@@ -101,12 +102,23 @@ const Heading = ({ title, seeAll }: HeadingProps) => {
 const HomeScreen = () => {
   const { colors } = useAppSelector(selectTheme);
   const { t } = useTranslation();
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
 
   const rootNavigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const tabNavigation =
     useNavigation<BottomTabNavigationProp<BottomTabParamList>>();
+
+  const { data: announcements } = useQuery({
+    queryKey: ['/announcements/active'],
+    queryFn: () => getActiveAnnouncements(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const visibleAnnouncements = (announcements ?? []).filter(
+    a => !dismissedIds.has(a.id),
+  );
 
   const themeStyle = {
     backgroundColor: colors.background,
@@ -161,6 +173,61 @@ const HomeScreen = () => {
             }}>
             {t('whatDoYouWantToLearn')}
           </Text>
+
+          {/* ─── Announcement Banners ─── */}
+          {visibleAnnouncements.map(ann => {
+            const typeColors: Record<string, { bg: string; fg: string }> = {
+              info: { bg: '#3b82f620', fg: '#3b82f6' },
+              warning: { bg: '#f59e0b20', fg: '#f59e0b' },
+              success: { bg: '#22c55e20', fg: '#22c55e' },
+              error: { bg: '#ef444420', fg: '#ef4444' },
+            };
+            const tc = typeColors[ann.type] ?? typeColors.info;
+            const BannerIcon =
+              ann.type === 'warning' ? AlertTriangleIcon : InfoIcon;
+            return (
+              <View
+                key={ann.id}
+                style={{
+                  backgroundColor: tc.bg,
+                  borderRadius: 12,
+                  padding: 12,
+                  marginTop: 10,
+                  flexDirection: 'row',
+                  alignItems: 'flex-start',
+                  gap: 10,
+                }}>
+                <BannerIcon size={18} color={tc.fg} style={{ marginTop: 2 }} />
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontWeight: '600',
+                      fontSize: 14,
+                      color: tc.fg,
+                    }}>
+                    {ann.title}
+                  </Text>
+                  {ann.body ? (
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        color: colors.text,
+                        marginTop: 2,
+                      }}>
+                      {ann.body}
+                    </Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity
+                  onPress={() =>
+                    setDismissedIds(prev => new Set(prev).add(ann.id))
+                  }
+                  hitSlop={8}>
+                  <XIcon size={16} color={colors.muted} />
+                </TouchableOpacity>
+              </View>
+            );
+          })}
 
           {showOfflineNotice && (
             <>

@@ -21,6 +21,8 @@ export interface FormField {
   multiline?: boolean;
   keyboardType?: 'default' | 'numeric' | 'url';
   required?: boolean;
+  /** If provided, renders a picker instead of a text input */
+  options?: { value: string; label: string }[];
 }
 
 interface AdminFormModalProps {
@@ -72,6 +74,38 @@ export const AdminFormModal = ({
                   {field.label}
                   {field.required ? ' *' : ''}
                 </Text>
+                {field.options ? (
+                  <View style={styles.optionsRow}>
+                    {field.options.map(opt => {
+                      const selected = values[field.key] === opt.value;
+                      return (
+                        <TouchableOpacity
+                          key={opt.value}
+                          style={[
+                            styles.optionChip,
+                            {
+                              backgroundColor: selected
+                                ? colors.primary
+                                : colors.inputBackground,
+                              borderColor: selected
+                                ? colors.primary
+                                : colors.border,
+                            },
+                          ]}
+                          onPress={() => onChange(field.key, opt.value)}
+                          disabled={loading}>
+                          <Text
+                            style={[
+                              styles.optionChipText,
+                              { color: selected ? '#fff' : colors.text },
+                            ]}>
+                            {opt.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : (
                 <TextInput
                   style={[
                     styles.input,
@@ -91,6 +125,7 @@ export const AdminFormModal = ({
                   textAlignVertical={field.multiline ? 'top' : 'center'}
                   editable={!loading}
                 />
+                )}
               </View>
             ))}
           </ScrollView>
@@ -180,6 +215,21 @@ const styles = StyleSheet.create({
   multilineInput: {
     minHeight: 80,
     paddingTop: 10,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  optionChipText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   actions: {
     flexDirection: 'row',

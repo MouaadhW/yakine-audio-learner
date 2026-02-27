@@ -10,6 +10,13 @@ import { lessonRouter } from './routes/lesson.routes';
 import { progressRouter } from './routes/progress.routes';
 import { downloadRouter } from './routes/download.routes';
 import { storageRouter } from './routes/storage.routes';
+import { adminUsersRouter } from './routes/admin-users.routes';
+import { moderationRouter } from './routes/moderation.routes';
+import { statsRouter } from './routes/stats.routes';
+import { bulkRouter } from './routes/bulk.routes';
+import { announcementsRouter } from './routes/announcements.routes';
+import { featureFlagsRouter } from './routes/feature-flags.routes';
+import { adminContentRouter } from './routes/admin-content.routes';
 import { env } from './config/env';
 
 export const app = express();
@@ -17,7 +24,7 @@ export const app = express();
 app.use(helmet());
 app.use(cors({ origin: env.CORS_ORIGIN }));
 app.use(morgan('dev'));
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '20mb' }));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -30,6 +37,13 @@ app.use('/api/lessons', lessonRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/downloads', downloadRouter);
 app.use('/api/storage', storageRouter);
+app.use('/api/admin/users', adminUsersRouter);
+app.use('/api/admin/moderation', moderationRouter);
+app.use('/api/admin/stats', statsRouter);
+app.use('/api/admin/bulk', bulkRouter);
+app.use('/api/announcements', announcementsRouter);
+app.use('/api/feature-flags', featureFlagsRouter);
+app.use('/api/admin/content', adminContentRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof z.ZodError) {

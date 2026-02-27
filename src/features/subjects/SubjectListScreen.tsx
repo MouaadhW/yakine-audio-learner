@@ -38,7 +38,17 @@ const STREAMS = ['SCIENTIFIC', 'LITERARY', 'ECONOMIC', 'TECHNICAL'] as const;
 const subjectFields: FormField[] = [
   { key: 'nameEn', label: 'Name (English)', required: true },
   { key: 'nameFr', label: 'Name (French)', required: true },
-  { key: 'stream', label: 'Stream (SCIENTIFIC, LITERARY, ECONOMIC, TECHNICAL)', required: true },
+  {
+    key: 'stream',
+    label: 'Stream',
+    required: true,
+    options: [
+      { value: 'SCIENTIFIC', label: 'Scientific' },
+      { value: 'LITERARY', label: 'Literary' },
+      { value: 'ECONOMIC', label: 'Economic' },
+      { value: 'TECHNICAL', label: 'Technical' },
+    ],
+  },
   { key: 'icon', label: 'Icon (emoji)', placeholder: '📚' },
   { key: 'color', label: 'Color (hex)', placeholder: '#6C63FF' },
 ];
@@ -75,7 +85,7 @@ const SubjectCard = ({
         {isFr ? item.nameFr : item.nameEn}
       </Text>
       <Text style={[styles.chapters, { color: colors.primary }]}>
-        {item.chapters?.length ?? 0} {isFr ? 'chapitres' : 'chapters'}
+        {item.chapterCount ?? item.chapters?.length ?? 0} {isFr ? 'chapitres' : 'chapters'}
       </Text>
       {isAdmin && (
         <View style={styles.adminActions}>

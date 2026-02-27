@@ -1,30 +1,44 @@
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { BellIcon, MoonIcon, SunIcon } from 'lucide-react-native';
 import {
+  BottomTabBar,
+  BottomTabBarProps,
+  createBottomTabNavigator,
+} from '@react-navigation/bottom-tabs';
+import {
+  BellIcon,
+  MoonIcon,
+  SunIcon,
   BookOpenIcon,
   HomeIcon,
   NewspaperIcon,
   UserIcon,
-} from 'react-native-heroicons/outline';
-import {
-  BookOpenIcon as BookOpenSolidIcon,
-  HomeIcon as HomeSolidIcon,
-  NewspaperIcon as NewspaperSolidIcon,
-  UserIcon as UserSolidIcon,
-} from 'react-native-heroicons/solid';
+} from 'lucide-react-native';
 import { HeaderButtons, Item } from 'react-navigation-header-buttons';
 import { useTranslation } from 'react-i18next';
+import { View } from 'react-native';
 import { DefaultStyles } from './components/styles';
 import { HeaderLogo } from './components/ui/HeaderLogo';
+import MiniPlayer from './components/ui/MiniPlayer';
 import HomeScreen from './features/home/HomeScreen';
 import MyCoursesScreen from './features/learning/MyCoursesScreen';
 import ProfileScreen from './features/profile/ProfileScreen';
 import SubjectListScreen from './features/subjects/SubjectListScreen';
 import { selectTheme, setDarkMode, setLightMode } from './features/themeSlice';
+import { selectCurrentLesson } from './features/audioPlayerSlice';
 import { useAppDispatch, useAppSelector } from './lib/hooks';
 import { BottomTabParamList } from './navigations';
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
+
+const TabBarWithMiniPlayer = (props: BottomTabBarProps) => {
+  const currentLesson = useAppSelector(selectCurrentLesson);
+
+  return (
+    <View>
+      {currentLesson && <MiniPlayer />}
+      <BottomTabBar {...props} />
+    </View>
+  );
+};
 
 const MainTabs = () => {
   const dispatch = useAppDispatch();
@@ -34,6 +48,7 @@ const MainTabs = () => {
   return (
     <Tab.Navigator
       initialRouteName="Home"
+      tabBar={props => <TabBarWithMiniPlayer {...props} />}
       screenOptions={{
         tabBarShowLabel: false,
         headerShadowVisible: false,
@@ -64,9 +79,9 @@ const MainTabs = () => {
           headerTitle: props => <HeaderLogo {...props} />,
           tabBarIcon: props => {
             if (props.focused) {
-              return <HomeSolidIcon {...props} />;
+              return <HomeIcon size={props.size} color={props.color} strokeWidth={2.5} />;
             }
-            return <HomeIcon {...props} />;
+            return <HomeIcon size={props.size} color={props.color} />;
           },
           headerRight: props => (
             <HeaderButtons>
@@ -100,9 +115,9 @@ const MainTabs = () => {
           title: 'Subjects',
           tabBarIcon: props => {
             if (props.focused) {
-              return <NewspaperSolidIcon {...props} />;
+              return <NewspaperIcon size={props.size} color={props.color} strokeWidth={2.5} />;
             }
-            return <NewspaperIcon {...props} />;
+            return <NewspaperIcon size={props.size} color={props.color} />;
           },
         }}
       />
@@ -114,9 +129,9 @@ const MainTabs = () => {
           headerTitle: t('library'),
           tabBarIcon: props => {
             if (props.focused) {
-              return <BookOpenSolidIcon {...props} />;
+              return <BookOpenIcon size={props.size} color={props.color} strokeWidth={2.5} />;
             }
-            return <BookOpenIcon {...props} />;
+            return <BookOpenIcon size={props.size} color={props.color} />;
           },
         }}
       />
@@ -127,9 +142,9 @@ const MainTabs = () => {
           title: t('profile'),
           tabBarIcon: props => {
             if (props.focused) {
-              return <UserSolidIcon {...props} />;
+              return <UserIcon size={props.size} color={props.color} strokeWidth={2.5} />;
             }
-            return <UserIcon {...props} />;
+            return <UserIcon size={props.size} color={props.color} />;
           },
         }}
       />
