@@ -8,6 +8,10 @@ interface AuthUser {
   email: string;
   role: 'STUDENT' | 'TEACHER' | 'ADMIN';
   language?: string;
+  educationLevel?: 'HIGH_SCHOOL' | 'UNIVERSITY';
+  grade?: number;
+  universityYear?: number;
+  stream?: 'SCIENTIFIC' | 'LITERARY' | 'ECONOMIC' | 'TECHNICAL';
 }
 
 interface AuthState {

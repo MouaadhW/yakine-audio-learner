@@ -17,6 +17,7 @@ import { bulkRouter } from './routes/bulk.routes';
 import { announcementsRouter } from './routes/announcements.routes';
 import { featureFlagsRouter } from './routes/feature-flags.routes';
 import { adminContentRouter } from './routes/admin-content.routes';
+import { teacherScopesRouter } from './routes/teacher-scopes.routes';
 import { env } from './config/env';
 
 export const app = express();
@@ -50,6 +51,7 @@ app.use('/api/admin/bulk', bulkRouter);
 app.use('/api/announcements', announcementsRouter);
 app.use('/api/feature-flags', featureFlagsRouter);
 app.use('/api/admin/content', adminContentRouter);
+app.use('/api/admin/teacher-scopes', teacherScopesRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof z.ZodError) {

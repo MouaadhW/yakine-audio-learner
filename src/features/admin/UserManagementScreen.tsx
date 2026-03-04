@@ -14,6 +14,7 @@ import {
   ShieldBanIcon,
   Trash2Icon,
   UserIcon,
+  SettingsIcon,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { Loading } from '@/components/ui/Loading';
@@ -26,10 +27,14 @@ import {
   deleteUser,
   AdminUser,
 } from '@/lib/services/AdminApi';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { RootStackParamList } from '@/navigations';
 
 const ROLES = ['ALL', 'STUDENT', 'TEACHER', 'ADMIN'] as const;
 
-const UserManagementScreen = () => {
+type Props = NativeStackScreenProps<RootStackParamList, 'UserManagement'>;
+
+const UserManagementScreen = ({ navigation }: Props) => {
   const { colors } = useAppSelector(selectTheme);
   const queryClient = useQueryClient();
 
@@ -177,6 +182,21 @@ const UserManagementScreen = () => {
       </View>
 
       <View style={styles.actionRow}>
+        {item.role === 'TEACHER' && (
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: '#6366f120' }]}
+            onPress={() =>
+              navigation.navigate('TeacherScopes', {
+                teacherId: item.id,
+                teacherName: item.name,
+              })
+            }>
+            <SettingsIcon size={16} color="#6366f1" />
+            <Text style={{ color: '#6366f1', fontSize: 12, marginLeft: 4 }}>
+              Manage Scopes
+            </Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={[
             styles.actionBtn,

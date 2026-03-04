@@ -32,7 +32,11 @@ const registerSchema = z.object({
     .regex(/[A-Z]/, 'Must contain an uppercase letter')
     .regex(/[0-9]/, 'Must contain a number')
     .regex(/[^A-Za-z0-9]/, 'Must contain a special character'),
-  language: z.enum(['fr', 'en']).optional()
+  language: z.enum(['fr', 'en']).optional(),
+  educationLevel: z.enum(['HIGH_SCHOOL', 'UNIVERSITY']).optional(),
+  grade: z.number().int().optional(),
+  universityYear: z.number().int().optional(),
+  stream: z.enum(['SCIENTIFIC', 'LITERARY', 'ECONOMIC', 'TECHNICAL']).optional(),
 });
 
 const loginSchema = z.object({
@@ -83,7 +87,11 @@ authRouter.post('/register', registerLimiter, async (req, res, next) => {
         password,
         role: 'STUDENT',
         language: input.language,
-        currentSessionId: sessionId
+        currentSessionId: sessionId,
+        educationLevel: input.educationLevel,
+        grade: input.grade,
+        universityYear: input.universityYear,
+        stream: input.stream,
       }
     });
 
@@ -108,7 +116,11 @@ authRouter.post('/register', registerLimiter, async (req, res, next) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        language: user.language
+        language: user.language,
+        educationLevel: user.educationLevel,
+        grade: user.grade,
+        universityYear: user.universityYear,
+        stream: user.stream,
       }
     });
   } catch (error) {
@@ -171,7 +183,11 @@ authRouter.post('/login', authLimiter, async (req, res, next) => {
         email: user.email,
         name: user.name,
         role: user.role,
-        language: user.language
+        language: user.language,
+        educationLevel: user.educationLevel,
+        grade: user.grade,
+        universityYear: user.universityYear,
+        stream: user.stream,
       }
     });
   } catch (error) {
@@ -189,6 +205,10 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
         name: true,
         role: true,
         language: true,
+        educationLevel: true,
+        grade: true,
+        universityYear: true,
+        stream: true,
         createdAt: true
       }
     });

@@ -13,6 +13,7 @@ export type RootStackParamList = {
   AudioPlayer: { lesson: BACLesson };
   AdminPanel: undefined;
   UserManagement: undefined;
+  TeacherScopes: { teacherId: string; teacherName: string };
   Moderation: undefined;
   Stats: undefined;
   BulkImportExport: undefined;

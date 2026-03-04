@@ -33,6 +33,7 @@ import FeatureFlagsScreen from './features/admin/FeatureFlagsScreen';
 import ModerationScreen from './features/admin/ModerationScreen';
 import StatsScreen from './features/admin/StatsScreen';
 import UserManagementScreen from './features/admin/UserManagementScreen';
+import TeacherScopesScreen from './features/admin/TeacherScopesScreen';
 import ChapterListScreen from './features/subjects/ChapterListScreen';
 import LessonListScreen from './features/subjects/LessonListScreen';
 import SubjectListScreen from './features/subjects/SubjectListScreen';
@@ -242,6 +243,11 @@ const MainNavigation = () => {
             name="UserManagement"
             component={UserManagementScreen}
             options={{ title: 'User Management' }}
+          />
+          <Stack.Screen
+            name="TeacherScopes"
+            component={TeacherScopesScreen}
+            options={{ title: 'Teacher Permissions' }}
           />
           <Stack.Screen
             name="Moderation"

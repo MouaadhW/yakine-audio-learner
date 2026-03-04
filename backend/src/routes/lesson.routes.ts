@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { requireTeacherScope } from '../middleware/teacherScope';
 
 const createLessonSchema = z.object({
   titleEn: z.string().min(2),
@@ -140,7 +141,7 @@ lessonRouter.get('/:id', async (req, res, next) => {
   }
 });
 
-lessonRouter.post('/', requireAuth, requireRole('TEACHER', 'ADMIN'), async (req, res, next) => {
+lessonRouter.post('/', requireAuth, requireRole('TEACHER', 'ADMIN'), requireTeacherScope, async (req, res, next) => {
   try {
     const input = createLessonSchema.parse(req.body);
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth, requireRole, optionalAuth } from '../middleware/auth';
 
 const createSubjectSchema = z.object({
   nameEn: z.string().min(2),
@@ -11,6 +11,9 @@ const createSubjectSchema = z.object({
   stream: z.enum(['SCIENTIFIC', 'LITERARY', 'ECONOMIC', 'TECHNICAL']),
   icon: z.string().optional(),
   color: z.string().optional(),
+  educationLevel: z.enum(['HIGH_SCHOOL', 'UNIVERSITY']).optional(),
+  grade: z.number().int().optional(),
+  universityYear: z.number().int().optional(),
 });
 
 const updateSubjectSchema = z.object({
@@ -21,17 +24,68 @@ const updateSubjectSchema = z.object({
   stream: z.enum(['SCIENTIFIC', 'LITERARY', 'ECONOMIC', 'TECHNICAL']).optional(),
   icon: z.string().optional(),
   color: z.string().optional(),
+  educationLevel: z.enum(['HIGH_SCHOOL', 'UNIVERSITY']).optional(),
+  grade: z.number().int().optional(),
+  universityYear: z.number().int().optional(),
 });
 
 export const subjectRouter = Router();
 
-subjectRouter.get('/', async (req, res, next) => {
+subjectRouter.get('/', optionalAuth, async (req, res, next) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const page = parseInt(req.query.page as string) || 1;
+    const page = parseInt((req.query.page as string) || '1');
+    const limit = parseInt((req.query.limit as string) || '50');
+
+    let scopeFilter: any = {}; // default: no filter (unauthenticated or admin)
+
+    if ((req as any).auth) {
+      const auth = (req as any).auth;
+
+      if (auth.role === 'STUDENT') {
+        // Student: show only subjects matching their education profile
+        const student = await prisma.user.findUnique({
+          where: { id: auth.userId },
+          select: { educationLevel: true, grade: true, universityYear: true, stream: true },
+        });
+
+        if (student) {
+          if (student.educationLevel) {
+            scopeFilter.educationLevel = student.educationLevel;
+          }
+          if (student.grade != null) {
+            scopeFilter.grade = student.grade;
+          }
+          if (student.universityYear != null) {
+            scopeFilter.universityYear = student.universityYear;
+          }
+          if (student.stream) {
+            scopeFilter.stream = student.stream;
+          }
+        }
+      } else if (auth.role === 'TEACHER') {
+        // Teacher: show only subjects that match their scopes
+        const scopes = await prisma.teacherScope.findMany({
+          where: { teacherId: auth.userId },
+        });
+
+        if (scopes.length > 0) {
+          scopeFilter.OR = scopes.map(s => ({
+            educationLevel: s.educationLevel,
+            ...(s.grade != null && { grade: s.grade }),
+            ...(s.universityYear != null && { universityYear: s.universityYear }),
+            stream: s.stream,
+          }));
+        } else {
+          // Teacher has no scopes — show nothing
+          scopeFilter.id = '__none__';
+        }
+      }
+      // ADMIN: no filter, sees everything
+    }
 
     const [subjects, total] = await Promise.all([
       prisma.subject.findMany({
+        where: scopeFilter,
         include: {
           _count: { select: { chapters: true } },
           chapters: {
@@ -42,7 +96,7 @@ subjectRouter.get('/', async (req, res, next) => {
         take: limit,
         skip: (page - 1) * limit,
       }),
-      prisma.subject.count(),
+      prisma.subject.count({ where: scopeFilter }),
     ]);
 
     // Map to Page<T> format with CMS-compatible fields
@@ -56,6 +110,9 @@ subjectRouter.get('/', async (req, res, next) => {
       stream: s.stream,
       icon: s.icon,
       color: s.color,
+      educationLevel: s.educationLevel,
+      grade: s.grade,
+      universityYear: s.universityYear,
       chapterCount: s._count.chapters,
       // CMS Category-compatible fields (used by HomeScreen)
       name: s.nameEn,

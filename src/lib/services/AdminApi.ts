@@ -322,3 +322,52 @@ export async function deleteFeatureFlag(id: string): Promise<void> {
   });
   await validateApiResponse(resp);
 }
+
+// ─── Teacher Scopes ─────────────────────────────────────────────────
+
+export interface TeacherScopeItem {
+  id: string;
+  teacherId: string;
+  educationLevel: 'HIGH_SCHOOL' | 'UNIVERSITY';
+  grade: number | null;
+  universityYear: number | null;
+  stream: 'SCIENTIFIC' | 'LITERARY' | 'ECONOMIC' | 'TECHNICAL';
+  createdAt: string;
+}
+
+export async function getTeacherScopes(
+  teacherId: string,
+): Promise<TeacherScopeItem[]> {
+  const resp = await makeApiRequest({
+    url: `/api/admin/teacher-scopes/${teacherId}`,
+  });
+  await validateApiResponse(resp);
+  return (await resp.json()) as TeacherScopeItem[];
+}
+
+export async function createTeacherScope(data: {
+  teacherId: string;
+  educationLevel: 'HIGH_SCHOOL' | 'UNIVERSITY';
+  grade: number | null;
+  universityYear: number | null;
+  stream: 'SCIENTIFIC' | 'LITERARY' | 'ECONOMIC' | 'TECHNICAL';
+}): Promise<TeacherScopeItem> {
+  const resp = await makeApiRequest({
+    url: '/api/admin/teacher-scopes',
+    options: {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    },
+  });
+  await validateApiResponse(resp);
+  return (await resp.json()) as TeacherScopeItem;
+}
+
+export async function deleteTeacherScope(id: string): Promise<void> {
+  const resp = await makeApiRequest({
+    url: `/api/admin/teacher-scopes/${id}`,
+    options: { method: 'DELETE' },
+  });
+  await validateApiResponse(resp);
+}
