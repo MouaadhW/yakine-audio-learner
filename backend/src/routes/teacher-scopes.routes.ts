@@ -1,9 +1,20 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import rateLimit from 'express-rate-limit';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
 
 export const teacherScopesRouter = Router();
+
+const isDev = process.env.NODE_ENV !== 'production';
+
+const scopesLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 200 : 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later' },
+});
 
 const createScopeSchema = z.object({
   teacherId: z.string().min(1),
@@ -16,6 +27,7 @@ const createScopeSchema = z.object({
 // GET /api/admin/teacher-scopes/:teacherId — list scopes for a teacher
 teacherScopesRouter.get(
   '/:teacherId',
+  scopesLimiter,
   requireAuth,
   requireRole('ADMIN'),
   async (req, res, next) => {
@@ -35,6 +47,7 @@ teacherScopesRouter.get(
 // POST /api/admin/teacher-scopes — grant a scope to a teacher
 teacherScopesRouter.post(
   '/',
+  scopesLimiter,
   requireAuth,
   requireRole('ADMIN'),
   async (req, res, next) => {
@@ -82,6 +95,7 @@ teacherScopesRouter.post(
 // DELETE /api/admin/teacher-scopes/:id — revoke a scope
 teacherScopesRouter.delete(
   '/:id',
+  scopesLimiter,
   requireAuth,
   requireRole('ADMIN'),
   async (req, res, next) => {
