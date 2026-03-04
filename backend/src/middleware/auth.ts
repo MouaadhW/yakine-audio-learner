@@ -51,6 +51,37 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   }
 }
 
+/**
+ * Like requireAuth but does not fail when no token is provided.
+ * If a valid token is present, req.auth is populated; otherwise req.auth stays undefined.
+ */
+export async function optionalAuth(req: Request, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+
+  if (!header || !header.startsWith('Bearer ')) {
+    return next();
+  }
+
+  const token = header.replace('Bearer ', '');
+
+  try {
+    const payload = verifyAccessToken(token);
+
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { currentSessionId: true, banned: true }
+    });
+
+    if (user && !user.banned && user.currentSessionId === payload.sessionId) {
+      req.auth = { userId: payload.sub, role: payload.role, sessionId: payload.sessionId };
+    }
+  } catch {
+    // Token invalid — proceed without auth
+  }
+
+  return next();
+}
+
 export function requireRole(...roles: Array<'STUDENT' | 'TEACHER' | 'ADMIN'>) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.auth) {

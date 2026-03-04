@@ -8,21 +8,26 @@ datasource db {
 }
 
 model User {
-  id        String     @id @default(cuid())
-  email     String     @unique
-  name      String
-  password  String
-  role      Role       @default(STUDENT)
-  language  String     @default("fr")
-  banned    Boolean    @default(false)
+  id               String          @id @default(cuid())
+  email            String          @unique
+  name             String
+  password         String
+  role             Role            @default(STUDENT)
+  language         String          @default("fr")
+  banned           Boolean         @default(false)
   currentSessionId String?
-  lastLoginAt DateTime?
-  createdAt DateTime   @default(now())
+  lastLoginAt      DateTime?
+  createdAt        DateTime        @default(now())
+  educationLevel   EducationLevel?
+  grade            Int?
+  universityYear   Int?
+  stream           Stream?
 
-  lessons       Lesson[]       @relation("TeacherLessons")
+  lessons       Lesson[]         @relation("TeacherLessons")
   progress      Progress[]
   downloads     Download[]
   refreshTokens RefreshToken[]
+  teacherScopes TeacherScope[]
 }
 
 model RefreshToken {
@@ -41,16 +46,24 @@ enum Role {
   ADMIN
 }
 
+enum EducationLevel {
+  HIGH_SCHOOL
+  UNIVERSITY
+}
+
 model Subject {
-  id       String    @id @default(cuid())
-  nameEn   String
-  nameFr   String
-  slugEn   String    @default("")
-  slugFr   String    @default("")
-  stream   Stream
-  icon     String    @default("📚")
-  color    String    @default("#6C63FF")
-  chapters Chapter[]
+  id             String          @id @default(cuid())
+  nameEn         String
+  nameFr         String
+  slugEn         String          @default("")
+  slugFr         String          @default("")
+  stream         Stream
+  icon           String          @default("📚")
+  color          String          @default("#6C63FF")
+  educationLevel EducationLevel  @default(HIGH_SCHOOL)
+  grade          Int?
+  universityYear Int?
+  chapters       Chapter[]
 }
 
 enum Stream {
@@ -138,4 +151,17 @@ model FeatureFlag {
   description String   @default("")
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
+}
+
+model TeacherScope {
+  id             String         @id @default(cuid())
+  teacherId      String
+  teacher        User           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  educationLevel EducationLevel
+  grade          Int?
+  universityYear Int?
+  stream         Stream
+  createdAt      DateTime       @default(now())
+
+  @@unique([teacherId, educationLevel, grade, universityYear, stream])
 }
