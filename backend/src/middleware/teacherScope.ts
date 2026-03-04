@@ -10,59 +10,58 @@ import { prisma } from '../lib/prisma';
  *
  * Expects `req.body.chapterId` to be present (used in lesson creation).
  */
-export function requireTeacherScope(req: Request, res: Response, next: NextFunction) {
-  if (!req.auth) {
-    return res.status(401).json({ message: 'Unauthorized' });
-  }
+export async function requireTeacherScope(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!req.auth) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
 
-  // Admins bypass scope checks
-  if (req.auth.role === 'ADMIN') {
-    return next();
-  }
+    // Admins bypass scope checks
+    if (req.auth.role === 'ADMIN') {
+      return next();
+    }
 
-  if (req.auth.role !== 'TEACHER') {
-    return res.status(403).json({ message: 'Forbidden' });
-  }
+    if (req.auth.role !== 'TEACHER') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
 
-  const { chapterId } = req.body;
+    const { chapterId } = req.body;
 
-  if (!chapterId) {
-    return res.status(400).json({ message: 'chapterId is required' });
-  }
+    if (!chapterId) {
+      return res.status(400).json({ message: 'chapterId is required' });
+    }
 
-  // Resolve chapter → subject to find scope fields
-  prisma.chapter
-    .findUnique({
+    // Resolve chapter → subject to find scope fields
+    const chapter = await prisma.chapter.findUnique({
       where: { id: chapterId },
       include: { subject: true },
-    })
-    .then(chapter => {
-      if (!chapter) {
-        return res.status(404).json({ message: 'Chapter not found' });
-      }
+    });
 
-      const subject = chapter.subject;
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
 
-      return prisma.teacherScope
-        .findFirst({
-          where: {
-            teacherId: req.auth!.userId,
-            educationLevel: subject.educationLevel,
-            grade: subject.grade,
-            universityYear: subject.universityYear,
-            stream: subject.stream,
-          },
-        })
-        .then(scope => {
-          if (!scope) {
-            return res.status(403).json({
-              message:
-                'You do not have permission to post content to this section. Contact an admin to get access.',
-            });
-          }
+    const subject = chapter.subject;
 
-          return next();
-        });
-    })
-    .catch(err => next(err));
+    const scope = await prisma.teacherScope.findFirst({
+      where: {
+        teacherId: req.auth.userId,
+        educationLevel: subject.educationLevel,
+        grade: subject.grade,
+        universityYear: subject.universityYear,
+        stream: subject.stream,
+      },
+    });
+
+    if (!scope) {
+      return res.status(403).json({
+        message:
+          'You do not have permission to post content to this section. Contact an admin to get access.',
+      });
+    }
+
+    return next();
+  } catch (err) {
+    return next(err);
+  }
 }

@@ -32,9 +32,9 @@ const EDUCATION_LEVELS: { value: EducationLevel; label: string; icon: string }[]
 ];
 
 const HIGH_SCHOOL_GRADES = [
-  { value: 1, label: 'Grade 1' },
-  { value: 2, label: 'Grade 2' },
-  { value: 3, label: 'Terminal' },
+  { value: 1, label: '1ère année' },
+  { value: 2, label: '2ème année' },
+  { value: 3, label: 'Terminale' },
 ];
 
 const UNIVERSITY_YEARS = [
@@ -126,7 +126,7 @@ const TeacherScopesScreen = ({ route }: Props) => {
     const levelLabel = s.educationLevel === 'HIGH_SCHOOL' ? 'High School' : 'University';
     const gradeLabel =
       s.educationLevel === 'HIGH_SCHOOL' && s.grade != null
-        ? `Grade ${s.grade}`
+        ? (HIGH_SCHOOL_GRADES.find(g => g.value === s.grade)?.label ?? `Grade ${s.grade}`)
         : s.universityYear != null
         ? `Year ${s.universityYear}`
         : '';

@@ -75,8 +75,10 @@ subjectRouter.get('/', optionalAuth, async (req, res, next) => {
             ...(s.universityYear != null && { universityYear: s.universityYear }),
             stream: s.stream,
           }));
+        } else {
+          // Teacher has no scopes — show nothing
+          scopeFilter.id = '__none__';
         }
-        // If teacher has no scopes, show all (no filter)
       }
       // ADMIN: no filter, sees everything
     }
