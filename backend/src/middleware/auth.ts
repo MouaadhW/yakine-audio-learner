@@ -14,7 +14,7 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
 
   if (!header || !header.startsWith('Bearer ')) {
@@ -27,27 +27,25 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     const payload = verifyAccessToken(token);
 
     // Validate session against DB
-    prisma.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: payload.sub },
       select: { currentSessionId: true, banned: true }
-    }).then(user => {
-      if (!user) {
-        return res.status(401).json({ message: 'User not found' });
-      }
-
-      if (user.banned) {
-        return res.status(403).json({ message: 'Your account has been suspended' });
-      }
-
-      if (user.currentSessionId !== payload.sessionId) {
-        return res.status(401).json({ message: 'Session expired. Your account was logged in on another device.' });
-      }
-
-      req.auth = { userId: payload.sub, role: payload.role, sessionId: payload.sessionId };
-      return next();
-    }).catch(() => {
-      return res.status(500).json({ message: 'Internal server error' });
     });
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    if (user.banned) {
+      return res.status(403).json({ message: 'Your account has been suspended' });
+    }
+
+    if (user.currentSessionId !== payload.sessionId) {
+      return res.status(401).json({ message: 'Session expired. Your account was logged in on another device.' });
+    }
+
+    req.auth = { userId: payload.sub, role: payload.role, sessionId: payload.sessionId };
+    return next();
   } catch {
     return res.status(401).json({ message: 'Invalid token' });
   }

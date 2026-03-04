@@ -274,7 +274,7 @@ authRouter.post('/refresh', authLimiter, async (req, res, next) => {
     const accessToken = signAccessToken(tokenPayload);
     const newRefreshTokenJwt = signRefreshToken(tokenPayload);
 
-    await prisma.$transaction([
+    const transactionOps = [
       prisma.refreshToken.update({
         where: { id: storedToken.id },
         data: { revokedAt: new Date() }
@@ -286,7 +286,19 @@ authRouter.post('/refresh', authLimiter, async (req, res, next) => {
           expiresAt: getRefreshTokenExpiry()
         }
       })
-    ]);
+    ];
+
+    // Persist sessionId if it was missing from the user record
+    if (!user.currentSessionId) {
+      transactionOps.push(
+        prisma.user.update({
+          where: { id: user.id },
+          data: { currentSessionId: sessionId }
+        }) as any
+      );
+    }
+
+    await prisma.$transaction(transactionOps);
 
     return res.json({ accessToken, refreshToken: newRefreshTokenJwt });
   } catch (error) {
