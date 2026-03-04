@@ -74,9 +74,16 @@ adminUsersRouter.put('/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Cannot ban yourself' });
     }
 
+    const updateData: any = { ...input };
+
+    // When banning a user, clear their session to immediately kick them out
+    if (input.banned) {
+      updateData.currentSessionId = null;
+    }
+
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: input,
+      data: updateData,
       select: {
         id: true,
         email: true,
@@ -88,6 +95,14 @@ adminUsersRouter.put('/:id', async (req, res, next) => {
         createdAt: true,
       },
     });
+
+    // When banning, revoke all refresh tokens
+    if (input.banned) {
+      await prisma.refreshToken.updateMany({
+        where: { userId: req.params.id, revokedAt: null },
+        data: { revokedAt: new Date() }
+      });
+    }
 
     return res.json(user);
   } catch (error) {

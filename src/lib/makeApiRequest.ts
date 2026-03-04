@@ -56,6 +56,19 @@ export async function makeApiRequest({
     const response = await fetch(requestUrl, requestOptions);
 
     if (response.status === 401) {
+      // Check if this is a session-expired error (logged in on another device)
+      const clonedResponse = response.clone();
+      try {
+        const body = await clonedResponse.json();
+        if (body.message && body.message.includes('Session expired')) {
+          // Session was invalidated by another login — force logout immediately
+          store.dispatch(logout());
+          return response;
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+
       const refreshToken = mmkv.getString(storageKeys.refreshToken);
       if (refreshToken) {
         try {

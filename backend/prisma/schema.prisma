@@ -15,12 +15,24 @@ model User {
   role      Role       @default(STUDENT)
   language  String     @default("fr")
   banned    Boolean    @default(false)
+  currentSessionId String?
   lastLoginAt DateTime?
   createdAt DateTime   @default(now())
 
-  lessons    Lesson[]   @relation("TeacherLessons")
-  progress   Progress[]
-  downloads  Download[]
+  lessons       Lesson[]       @relation("TeacherLessons")
+  progress      Progress[]
+  downloads     Download[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
 }
 
 enum Role {

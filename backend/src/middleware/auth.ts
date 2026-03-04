@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../lib/jwt';
+import { prisma } from '../lib/prisma';
 
 declare global {
   namespace Express {
@@ -7,12 +8,13 @@ declare global {
       auth?: {
         userId: string;
         role: 'STUDENT' | 'TEACHER' | 'ADMIN';
+        sessionId: string;
       };
     }
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
 
   if (!header || !header.startsWith('Bearer ')) {
@@ -23,7 +25,26 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 
   try {
     const payload = verifyAccessToken(token);
-    req.auth = { userId: payload.sub, role: payload.role };
+
+    // Validate session against DB
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      select: { currentSessionId: true, banned: true }
+    });
+
+    if (!user) {
+      return res.status(401).json({ message: 'User not found' });
+    }
+
+    if (user.banned) {
+      return res.status(403).json({ message: 'Your account has been suspended' });
+    }
+
+    if (user.currentSessionId !== payload.sessionId) {
+      return res.status(401).json({ message: 'Session expired. Your account was logged in on another device.' });
+    }
+
+    req.auth = { userId: payload.sub, role: payload.role, sessionId: payload.sessionId };
     return next();
   } catch {
     return res.status(401).json({ message: 'Invalid token' });
