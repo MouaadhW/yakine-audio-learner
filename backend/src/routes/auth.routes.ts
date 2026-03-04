@@ -306,7 +306,7 @@ authRouter.post('/refresh', authLimiter, async (req, res, next) => {
   }
 });
 
-authRouter.post('/logout', requireAuth, async (req, res, next) => {
+authRouter.post('/logout', authLimiter, requireAuth, async (req, res, next) => {
   try {
     // Revoke all refresh tokens and clear session
     await prisma.$transaction([
