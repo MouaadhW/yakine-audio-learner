@@ -22,7 +22,13 @@ import { env } from './config/env';
 export const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: env.CORS_ORIGIN }));
+
+// Parse CORS_ORIGIN: supports comma-separated list of allowed origins or '*'
+const corsOrigin = env.CORS_ORIGIN === '*'
+  ? true
+  : env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean);
+
+app.use(cors({ origin: corsOrigin }));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '20mb' }));
 

@@ -84,8 +84,23 @@ const SignupScreen = ({ navigation }: Props) => {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      setError('Password must contain an uppercase letter.');
+      return;
+    }
+
+    if (!/[0-9]/.test(password)) {
+      setError('Password must contain a number.');
+      return;
+    }
+
+    if (!/[^A-Za-z0-9]/.test(password)) {
+      setError('Password must contain a special character.');
       return;
     }
 

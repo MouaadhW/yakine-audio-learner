@@ -1,9 +1,15 @@
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import { env } from '../config/env';
 
 export interface JwtPayload {
   sub: string;
   role: 'STUDENT' | 'TEACHER' | 'ADMIN';
+  sessionId: string;
+}
+
+export function generateSessionId(): string {
+  return uuidv4();
 }
 
 export function signAccessToken(payload: JwtPayload): string {
