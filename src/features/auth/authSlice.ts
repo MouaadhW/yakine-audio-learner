@@ -2,16 +2,21 @@ import { RootState } from '@/lib/store';
 import { mmkv, storageKeys } from '@/lib/storage/mmkv';
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface AuthUser {
+export interface AuthUser {
   id: string;
   name: string;
   email: string;
   role: 'STUDENT' | 'TEACHER' | 'ADMIN';
+  subscriptionTier?: 'FREE' | 'PREMIUM';
   language?: string;
   educationLevel?: 'HIGH_SCHOOL' | 'UNIVERSITY';
   grade?: number;
   universityYear?: number;
   stream?: 'SCIENTIFIC' | 'LITERARY' | 'ECONOMIC' | 'TECHNICAL';
+  lawRegion?: 'TUNIS' | 'SOUSSE' | 'SFAX' | 'JENDOUBA' | 'KAIROUAN' | 'GABES' | 'NABEUL' | 'BIZERTE';
+  lawUniversity?: string;
+  lawMajor?: 'DROIT_PRIVE' | 'DROIT_PUBLIC';
+  lawAcademicLevel?: 'L1' | 'L2' | 'L3';
 }
 
 interface AuthState {

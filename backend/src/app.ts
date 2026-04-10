@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import { z } from 'zod';
+import { Prisma } from '@prisma/client';
 import { authRouter } from './routes/auth.routes';
 import { subjectRouter } from './routes/subject.routes';
 import { chapterRouter } from './routes/chapter.routes';
@@ -18,6 +19,8 @@ import { announcementsRouter } from './routes/announcements.routes';
 import { featureFlagsRouter } from './routes/feature-flags.routes';
 import { adminContentRouter } from './routes/admin-content.routes';
 import { teacherScopesRouter } from './routes/teacher-scopes.routes';
+import { adminTeacherLawRouter } from './routes/admin-teacher-law.routes';
+import { teacherComposerRouter } from './routes/teacher-composer.routes';
 import { env } from './config/env';
 
 export const app = express();
@@ -52,12 +55,20 @@ app.use('/api/announcements', announcementsRouter);
 app.use('/api/feature-flags', featureFlagsRouter);
 app.use('/api/admin/content', adminContentRouter);
 app.use('/api/admin/teacher-scopes', teacherScopesRouter);
+app.use('/api/admin/teacher-law', adminTeacherLawRouter);
+app.use('/api/teacher-composer', teacherComposerRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof z.ZodError) {
     return res.status(400).json({
       message: 'Validation error',
       errors: error.issues
+    });
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return res.status(503).json({
+      message: 'Database is temporarily unavailable. Please try again shortly.',
     });
   }
 

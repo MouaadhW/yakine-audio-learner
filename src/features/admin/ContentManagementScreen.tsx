@@ -36,6 +36,7 @@ interface LessonItem {
   duration: number;
   sortOrder: number;
   status: string;
+  audience?: string;
   scriptEn: string;
   scriptFr: string;
   createdAt: string;
@@ -100,6 +101,14 @@ const lessonFields: FormField[] = [
       { value: 'REJECTED', label: 'Rejected' },
     ],
   },
+  {
+    key: 'audience',
+    label: 'Access',
+    options: [
+      { value: 'FREE', label: 'Free' },
+      { value: 'PREMIUM', label: 'Premium only' },
+    ],
+  },
 ];
 
 // ─── Component ──────────────────────────────────────────────────────
@@ -144,6 +153,7 @@ const ContentManagementScreen = () => {
       duration: String(item.duration ?? 0),
       sortOrder: String(item.sortOrder ?? 0),
       status: item.status ?? 'PUBLISHED',
+      audience: item.audience ?? 'FREE',
     });
     setShowModal(true);
   }, []);
@@ -165,6 +175,8 @@ const ContentManagementScreen = () => {
       if (formValues.scriptFr) payload.scriptFr = formValues.scriptFr;
       if (formValues.duration) payload.duration = parseInt(formValues.duration, 10);
       if (formValues.sortOrder) payload.sortOrder = parseInt(formValues.sortOrder, 10);
+      if (formValues.status) payload.status = formValues.status;
+      if (formValues.audience) payload.audience = formValues.audience;
 
       await adminUpdateLesson(editing.id, payload);
       queryClient.invalidateQueries({ queryKey: ['admin-content'] });

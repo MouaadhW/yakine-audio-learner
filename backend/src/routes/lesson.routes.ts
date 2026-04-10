@@ -1,8 +1,15 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireRole } from '../middleware/auth';
-import { requireTeacherScope } from '../middleware/teacherScope';
+import { requireAuth, requireRole, optionalAuth } from '../middleware/auth';
+import { requireTeacherPostPermission } from '../middleware/teacherPostPermission';
+import { canRequestAccessSubject, resolveAllowedSubjectIds } from '../lib/subjectAccess';
+import {
+  canViewerAccessLessonAudience,
+  isLessonLockedForViewer,
+  lessonListAudienceWhereInput,
+  loadLessonListViewer,
+} from '../lib/lessonAccess';
 
 const createLessonSchema = z.object({
   titleEn: z.string().min(2),
@@ -12,13 +19,14 @@ const createLessonSchema = z.object({
   scriptFr: z.string().optional().default(''),
   duration: z.number().int().positive().optional().default(0),
   sortOrder: z.number().int().optional(),
-  chapterId: z.string().min(1)
+  chapterId: z.string().min(1),
+  audience: z.enum(['FREE', 'PREMIUM']).optional().default('FREE'),
 });
 
 const querySchema = z.object({
   chapterId: z.string().optional(),
   subjectId: z.string().optional(),
-  stream: z.enum(['SCIENTIFIC', 'LITERARY', 'ECONOMIC', 'TECHNICAL']).optional(),
+  stream: z.enum(['SCIENTIFIC', 'LITERARY', 'ECONOMIC', 'TECHNICAL', 'LAW']).optional(),
   page: z.string().optional(),
   limit: z.string().optional(),
   orderBy: z.string().optional(),
@@ -32,25 +40,61 @@ const updateLessonSchema = z.object({
   scriptFr: z.string().optional(),
   duration: z.number().int().optional(),
   sortOrder: z.number().int().optional(),
+  status: z.enum(['DRAFT', 'PENDING_REVIEW', 'PUBLISHED', 'REJECTED']).optional(),
+  audience: z.enum(['FREE', 'PREMIUM']).optional(),
 });
 
 export const lessonRouter = Router();
 
-lessonRouter.get('/', async (req, res, next) => {
+lessonRouter.get('/', optionalAuth, async (req, res, next) => {
   try {
     const query = querySchema.parse(req.query);
     const page = parseInt(query.page || '1');
     const limit = parseInt(query.limit || '15');
 
-    const where: any = {
+    const allowedIds = await resolveAllowedSubjectIds(prisma, req.auth);
+    if (allowedIds.length === 0) {
+      return res.json({
+        contents: [],
+        currentPage: page,
+        totalPage: 1,
+        pageSize: limit,
+        totalElements: 0,
+      });
+    }
+
+    if (query.subjectId && !allowedIds.includes(query.subjectId)) {
+      return res.json({
+        contents: [],
+        currentPage: page,
+        totalPage: 1,
+        pageSize: limit,
+        totalElements: 0,
+      });
+    }
+
+    const chapterWhere: Record<string, unknown> = {
+      subjectId: query.subjectId ?? { in: allowedIds },
+    };
+    if (query.chapterId) {
+      chapterWhere.id = query.chapterId;
+    }
+
+    const subjectNested: Record<string, unknown> = {};
+    if (query.stream) {
+      subjectNested.stream = query.stream;
+    }
+
+    const audienceFilter = lessonListAudienceWhereInput(req.auth);
+    const listViewer = await loadLessonListViewer(prisma, req.auth);
+
+    const where: Record<string, unknown> = {
       status: 'PUBLISHED',
+      ...audienceFilter,
       chapter: {
-        id: query.chapterId,
-        subjectId: query.subjectId,
-        subject: {
-          stream: query.stream
-        }
-      }
+        ...chapterWhere,
+        ...(Object.keys(subjectNested).length > 0 && { subject: subjectNested }),
+      },
     };
 
     const [lessons, total] = await Promise.all([
@@ -76,9 +120,10 @@ lessonRouter.get('/', async (req, res, next) => {
     ]);
 
     // Map to Page<T> format with both BAC and CMS-compatible fields
-    const contents = lessons.map((l: any, i: number) => ({
+    const contents = lessons.map((l: any) => ({
       // BAC fields (used by LessonListScreen / AudioPlayer)
       ...l,
+      locked: isLessonLockedForViewer(listViewer, l.audience),
       teacherName: l.teacher?.name || 'Unknown Teacher',
       // CMS Course-compatible fields (used by HomeScreen)
       title: l.titleEn,
@@ -112,7 +157,7 @@ lessonRouter.get('/', async (req, res, next) => {
   }
 });
 
-lessonRouter.get('/:id', async (req, res, next) => {
+lessonRouter.get('/:id', optionalAuth, async (req, res, next) => {
   try {
     const lesson = await prisma.lesson.findUnique({
       where: { id: req.params.id },
@@ -130,6 +175,16 @@ lessonRouter.get('/:id', async (req, res, next) => {
       return res.status(404).json({ message: 'Lesson not found' });
     }
 
+    const ok = await canRequestAccessSubject(prisma, req.auth, lesson.chapter.subject);
+    if (!ok) {
+      return res.status(403).json({ message: 'You do not have access to this lesson' });
+    }
+
+    const audienceOk = await canViewerAccessLessonAudience(prisma, req.auth, lesson.audience);
+    if (!audienceOk) {
+      return res.status(403).json({ message: 'This lesson requires a premium subscription' });
+    }
+
     return res.json({
       ...lesson,
       teacherName: lesson.teacher?.name || 'Unknown Teacher',
@@ -141,7 +196,7 @@ lessonRouter.get('/:id', async (req, res, next) => {
   }
 });
 
-lessonRouter.post('/', requireAuth, requireRole('TEACHER', 'ADMIN'), requireTeacherScope, async (req, res, next) => {
+lessonRouter.post('/', requireAuth, requireRole('TEACHER', 'ADMIN'), requireTeacherPostPermission, async (req, res, next) => {
   try {
     const input = createLessonSchema.parse(req.body);
 

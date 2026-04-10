@@ -34,6 +34,8 @@ import ModerationScreen from './features/admin/ModerationScreen';
 import StatsScreen from './features/admin/StatsScreen';
 import UserManagementScreen from './features/admin/UserManagementScreen';
 import TeacherScopesScreen from './features/admin/TeacherScopesScreen';
+import TeacherLawSubjectsScreen from './features/admin/TeacherLawSubjectsScreen';
+import TeacherAudioComposerScreen from './features/admin/TeacherAudioComposerScreen';
 import ChapterListScreen from './features/subjects/ChapterListScreen';
 import LessonListScreen from './features/subjects/LessonListScreen';
 import SubjectListScreen from './features/subjects/SubjectListScreen';
@@ -250,6 +252,11 @@ const MainNavigation = () => {
             options={{ title: 'Teacher Permissions' }}
           />
           <Stack.Screen
+            name="TeacherLawSubjects"
+            component={TeacherLawSubjectsScreen}
+            options={{ title: 'Law subject access' }}
+          />
+          <Stack.Screen
             name="Moderation"
             component={ModerationScreen}
             options={{ title: 'Content Moderation' }}
@@ -278,6 +285,11 @@ const MainNavigation = () => {
             name="ContentManagement"
             component={ContentManagementScreen}
             options={{ title: 'Content Management' }}
+          />
+          <Stack.Screen
+            name="TeacherAudioComposer"
+            component={TeacherAudioComposerScreen}
+            options={{ title: 'Teacher Audio Composer' }}
           />
             </>
           )}

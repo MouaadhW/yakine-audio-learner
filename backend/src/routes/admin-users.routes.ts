@@ -1,16 +1,49 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
+import {
+  LAW_LEVELS,
+  LAW_MAJORS,
+  LAW_REGIONS,
+  LAW_UNIVERSITIES_BY_REGION,
+  type LawRegion,
+} from '../constants/lawOnboarding';
 
 export const adminUsersRouter = Router();
 
 adminUsersRouter.use(requireAuth, requireRole('ADMIN'));
 
-const updateUserSchema = z.object({
-  role: z.enum(['STUDENT', 'TEACHER', 'ADMIN']).optional(),
-  banned: z.boolean().optional(),
-});
+const updateUserSchema = z
+  .object({
+    role: z.enum(['STUDENT', 'TEACHER', 'ADMIN']).optional(),
+    banned: z.boolean().optional(),
+    subscriptionTier: z.enum(['FREE', 'PREMIUM']).optional(),
+    lawRegion: z.enum(LAW_REGIONS).optional().nullable(),
+    lawUniversity: z.string().min(2).optional().nullable(),
+    lawMajor: z.enum(LAW_MAJORS).optional().nullable(),
+    lawAcademicLevel: z.enum(LAW_LEVELS).optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.lawUniversity && !data.lawRegion) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['lawRegion'],
+        message: 'lawRegion is required when lawUniversity is provided',
+      });
+    }
+    if (data.lawRegion && data.lawUniversity) {
+      const allowed = LAW_UNIVERSITIES_BY_REGION[data.lawRegion as LawRegion];
+      if (!allowed.includes(data.lawUniversity)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['lawUniversity'],
+          message: 'University is not valid for the selected region',
+        });
+      }
+    }
+  });
 
 // GET /api/admin/users — list/search with pagination
 adminUsersRouter.get('/', async (req, res, next) => {
@@ -41,6 +74,11 @@ adminUsersRouter.get('/', async (req, res, next) => {
           role: true,
           banned: true,
           language: true,
+          subscriptionTier: true,
+          lawRegion: true,
+          lawUniversity: true,
+          lawMajor: true,
+          lawAcademicLevel: true,
           lastLoginAt: true,
           createdAt: true,
           _count: { select: { lessons: true, progress: true } },
@@ -74,7 +112,17 @@ adminUsersRouter.put('/:id', async (req, res, next) => {
       return res.status(400).json({ message: 'Cannot ban yourself' });
     }
 
-    const updateData: any = { ...input };
+    if (input.subscriptionTier != null) {
+      const target = await prisma.user.findUnique({
+        where: { id: req.params.id },
+        select: { role: true },
+      });
+      if (!target || target.role !== 'STUDENT') {
+        return res.status(400).json({ message: 'Subscription tier can only be set for students' });
+      }
+    }
+
+    const updateData: Record<string, unknown> = { ...input };
 
     // When banning a user, clear their session to immediately kick them out
     if (input.banned) {
@@ -83,7 +131,7 @@ adminUsersRouter.put('/:id', async (req, res, next) => {
 
     const user = await prisma.user.update({
       where: { id: req.params.id },
-      data: updateData,
+      data: updateData as Prisma.UserUpdateInput,
       select: {
         id: true,
         email: true,
@@ -91,6 +139,11 @@ adminUsersRouter.put('/:id', async (req, res, next) => {
         role: true,
         banned: true,
         language: true,
+        subscriptionTier: true,
+        lawRegion: true,
+        lawUniversity: true,
+        lawMajor: true,
+        lawAcademicLevel: true,
         lastLoginAt: true,
         createdAt: true,
       },

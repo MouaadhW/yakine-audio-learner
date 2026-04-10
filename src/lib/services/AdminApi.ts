@@ -10,6 +10,11 @@ export interface AdminUser {
   role: 'STUDENT' | 'TEACHER' | 'ADMIN';
   banned: boolean;
   language: string;
+  subscriptionTier?: 'FREE' | 'PREMIUM';
+  lawRegion?: string | null;
+  lawUniversity?: string | null;
+  lawMajor?: string | null;
+  lawAcademicLevel?: string | null;
   lastLoginAt: string | null;
   createdAt: string;
   _count?: { lessons: number; progress: number };
@@ -130,7 +135,15 @@ export async function getUsers(params?: {
 
 export async function updateUser(
   id: string,
-  data: { role?: string; banned?: boolean },
+  data: {
+    role?: string;
+    banned?: boolean;
+    subscriptionTier?: 'FREE' | 'PREMIUM';
+    lawRegion?: string | null;
+    lawUniversity?: string | null;
+    lawMajor?: string | null;
+    lawAcademicLevel?: string | null;
+  },
 ): Promise<AdminUser> {
   const resp = await makeApiRequest({
     url: `/api/admin/users/${id}`,
@@ -367,6 +380,48 @@ export async function createTeacherScope(data: {
 export async function deleteTeacherScope(id: string): Promise<void> {
   const resp = await makeApiRequest({
     url: `/api/admin/teacher-scopes/${id}`,
+    options: { method: 'DELETE' },
+  });
+  await validateApiResponse(resp);
+}
+
+// ─── Teacher law subject assignments (faculty modules) ─────────────
+
+export interface TeacherLawAssignmentRow {
+  id: string;
+  subjectId: string;
+  subject: { nameEn: string; nameFr: string; lawUniversity: string | null };
+}
+
+export async function getTeacherLawAssignments(
+  teacherId: string,
+): Promise<TeacherLawAssignmentRow[]> {
+  const resp = await makeApiRequest({
+    url: `/api/admin/teacher-law/${encodeURIComponent(teacherId)}`,
+  });
+  await validateApiResponse(resp);
+  return (await resp.json()) as TeacherLawAssignmentRow[];
+}
+
+export async function setTeacherLawSubject(
+  teacherId: string,
+  subjectId: string,
+): Promise<{ id: string }> {
+  const resp = await makeApiRequest({
+    url: '/api/admin/teacher-law',
+    options: {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ teacherId, subjectId }),
+    },
+  });
+  await validateApiResponse(resp);
+  return (await resp.json()) as { id: string };
+}
+
+export async function removeTeacherLawAssignment(assignmentId: string): Promise<void> {
+  const resp = await makeApiRequest({
+    url: `/api/admin/teacher-law/assignment/${encodeURIComponent(assignmentId)}`,
     options: { method: 'DELETE' },
   });
   await validateApiResponse(resp);

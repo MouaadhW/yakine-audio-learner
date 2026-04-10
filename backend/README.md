@@ -7,12 +7,18 @@ Express + Prisma + PostgreSQL backend for courses, audio lessons, user progress,
 - PostgreSQL
 - Prisma ORM
 - JWT + bcrypt
-- S3/R2-ready storage config
+- Supabase Storage (teacher uploads + AI-generated audio)
+- ElevenLabs Text-to-Speech (AI generation)
 
 ## 1) Setup
 1. Copy env file:
    - Windows PowerShell: `Copy-Item .env.example .env`
 2. Update `.env` values (`DATABASE_URL`, `JWT_SECRET`, etc.)
+3. For Teacher Composer AI, set:
+   - `STORAGE_PROVIDER=supabase`
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_KEY`
+   - `ELEVENLABS_API_KEY`
 3. Install dependencies:
    - `npm install`
 4. Generate Prisma client:
@@ -26,6 +32,24 @@ Express + Prisma + PostgreSQL backend for courses, audio lessons, user progress,
 - Production: `npm start`
 
 Health check: `GET /health`
+
+## Teacher Composer / ElevenLabs Setup
+
+Required environment variables:
+
+- `STORAGE_PROVIDER=supabase`
+- `STORAGE_BUCKET=yakine-audio-files` (or your bucket)
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_KEY`
+- `ELEVENLABS_API_KEY`
+
+Optional tuning:
+
+- `ELEVENLABS_MODEL_ID=eleven_multilingual_v2`
+- `ELEVENLABS_OUTPUT_FORMAT=mp3_44100_128`
+- `ELEVENLABS_VOICE_EN`, `ELEVENLABS_VOICE_FR`, `ELEVENLABS_VOICE_AR`
+- `TTS_REQUEST_TIMEOUT_MS=45000`
+- `TEACHER_COMPOSER_MAX_CHARS=12000`
 
 ## 3) Main APIs
 - `POST /api/auth/register`
@@ -41,5 +65,16 @@ Health check: `GET /health`
 - `GET /api/downloads`
 - `POST /api/downloads`
 - `GET /api/storage/config`
+
+Teacher composer APIs (TEACHER/ADMIN):
+
+- `POST /api/teacher-composer/transcripts/upload`
+- `POST /api/teacher-composer/lessons`
+- `POST /api/teacher-composer/lessons/:id/manual-audio`
+- `POST /api/teacher-composer/lessons/:id/ai-jobs`
+- `GET /api/teacher-composer/lessons/:id/jobs`
+- `GET /api/teacher-composer/ai-jobs/:id`
+- `POST /api/teacher-composer/ai-jobs/:id/retry`
+- `POST /api/teacher-composer/ai-jobs/:id/cancel`
 
 Use `Authorization: Bearer <token>` for protected routes.

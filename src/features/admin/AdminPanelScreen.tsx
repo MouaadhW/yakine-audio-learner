@@ -9,6 +9,7 @@ import {
   BellIcon,
   FlagIcon,
   FileTextIcon,
+  WandSparklesIcon,
 } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { useAppSelector } from '@/lib/hooks';
@@ -66,6 +67,13 @@ const MENU_ITEMS = [
     subtitle: 'Toggle features per environment without a deploy',
     icon: FlagIcon,
     color: '#ef4444',
+  },
+  {
+    key: 'TeacherAudioComposer',
+    title: 'Teacher Audio Composer',
+    subtitle: 'Upload transcript, record or generate AI voice, publish lesson',
+    icon: WandSparklesIcon,
+    color: '#f97316',
   },
 ] as const;
 

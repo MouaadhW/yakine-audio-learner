@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
+import { isLessonLockedForViewer, loadLessonListViewer } from '../lib/lessonAccess';
 
 const upsertSchema = z.object({
   lessonId: z.string().min(1),
@@ -13,19 +14,36 @@ export const progressRouter = Router();
 
 progressRouter.get('/', requireAuth, async (req, res, next) => {
   try {
+    const listViewer = await loadLessonListViewer(prisma, req.auth);
     const progress = await prisma.progress.findMany({
       where: { userId: req.auth!.userId },
       include: {
-        lesson: true
+        lesson: {
+          include: {
+            teacher: { select: { name: true } },
+          },
+        },
       },
       orderBy: {
         lesson: {
-          createdAt: 'desc'
-        }
-      }
+          createdAt: 'desc',
+        },
+      },
     });
 
-    return res.json(progress);
+    const mapped = progress.map(p => {
+      const { teacher, ...lessonFields } = p.lesson;
+      return {
+        ...p,
+        lesson: {
+          ...lessonFields,
+          teacherName: teacher?.name ?? 'Unknown Teacher',
+          locked: isLessonLockedForViewer(listViewer, p.lesson.audience),
+        },
+      };
+    });
+
+    return res.json(mapped);
   } catch (error) {
     return next(error);
   }

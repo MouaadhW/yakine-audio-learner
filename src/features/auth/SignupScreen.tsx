@@ -1,8 +1,13 @@
 import { Text } from '@/components/ui/Text';
+import { DefaultStyles } from '@/components/styles';
 import { selectTheme } from '@/features/themeSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import { changeLanguage } from '@/lib/i18n';
+import { makeApiRequest } from '@/lib/makeApiRequest';
+import { RootStackParamList } from '@/navigations';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useRef, useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Animated,
   Easing,
@@ -14,67 +19,117 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { RootStackParamList } from '@/navigations';
 import { loginSuccess } from './authSlice';
-import { DefaultStyles } from '@/components/styles';
-import { makeApiRequest } from '@/lib/makeApiRequest';
+import {
+  LAW_LEVELS,
+  LAW_MAJORS,
+  LAW_UNIVERSITIES_BY_REGION,
+  type LawRegion,
+} from '../../../backend/src/constants/lawOnboarding';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Signup'>;
+type LawMajor = (typeof LAW_MAJORS)[number];
+type LawAcademicLevel = (typeof LAW_LEVELS)[number];
 
-type EducationLevel = 'HIGH_SCHOOL' | 'UNIVERSITY';
-type StreamType = 'SCIENTIFIC' | 'LITERARY' | 'ECONOMIC' | 'TECHNICAL';
+type LocalizedOption<T extends string> = {
+  value: T;
+  labelFr: string;
+  labelEn: string;
+};
 
-const HIGH_SCHOOL_GRADES = [
-  { value: 1, label: '1ère année' },
-  { value: 2, label: '2ème année' },
-  { value: 3, label: 'Terminale' },
+const REGION_OPTIONS: LocalizedOption<LawRegion>[] = [
+  { value: 'TUNIS', labelFr: 'Tunis', labelEn: 'Tunis' },
+  { value: 'SOUSSE', labelFr: 'Sousse', labelEn: 'Sousse' },
+  { value: 'SFAX', labelFr: 'Sfax', labelEn: 'Sfax' },
+  { value: 'JENDOUBA', labelFr: 'Jendouba', labelEn: 'Jendouba' },
+  { value: 'KAIROUAN', labelFr: 'Kairouan', labelEn: 'Kairouan' },
+  { value: 'GABES', labelFr: 'Gabès', labelEn: 'Gabes' },
+  { value: 'NABEUL', labelFr: 'Nabeul', labelEn: 'Nabeul' },
+  { value: 'BIZERTE', labelFr: 'Bizerte', labelEn: 'Bizerte' },
 ];
 
-const UNIVERSITY_YEARS = [
-  { value: 1, label: 'Year 1' },
-  { value: 2, label: 'Year 2' },
-  { value: 3, label: 'Year 3' },
-  { value: 4, label: 'Year 4' },
-  { value: 5, label: 'Year 5' },
+const MAJOR_OPTIONS: LocalizedOption<LawMajor>[] = [
+  { value: 'DROIT_PRIVE', labelFr: 'Droit privé', labelEn: 'Private Law' },
+  { value: 'DROIT_PUBLIC', labelFr: 'Droit public', labelEn: 'Public Law' },
 ];
 
-const HIGH_SCHOOL_STREAMS: { value: StreamType; label: string; icon: string }[] = [
-  { value: 'SCIENTIFIC', label: 'Scientific', icon: '🔬' },
-  { value: 'LITERARY', label: 'Literary', icon: '📚' },
-  { value: 'ECONOMIC', label: 'Economic', icon: '💰' },
-  { value: 'TECHNICAL', label: 'Technical', icon: '⚙️' },
+const LEVEL_OPTIONS: LocalizedOption<LawAcademicLevel>[] = [
+  { value: 'L1', labelFr: '1ère année - L1', labelEn: '1st Year - L1' },
+  { value: 'L2', labelFr: '2ème année - L2', labelEn: '2nd Year - L2' },
+  { value: 'L3', labelFr: '3ème année - L3', labelEn: '3rd Year - L3' },
 ];
 
-const UNIVERSITY_STREAMS: { value: StreamType; label: string; icon: string }[] = [
-  { value: 'SCIENTIFIC', label: 'Comp. Science', icon: '💻' },
-  { value: 'LITERARY', label: 'Literature', icon: '📚' },
-  { value: 'ECONOMIC', label: 'Economics', icon: '💰' },
-  { value: 'TECHNICAL', label: 'Engineering', icon: '⚙️' },
-];
+function getPasswordRuleError(password: string, isFrench: boolean): string | null {
+  if (password.length < 8) {
+    return isFrench
+      ? 'Le mot de passe doit contenir au moins 8 caractères.'
+      : 'Password must be at least 8 characters.';
+  }
+  if (!/[A-Z]/.test(password)) {
+    return isFrench
+      ? 'Le mot de passe doit contenir au moins une lettre majuscule.'
+      : 'Password must contain at least one uppercase letter.';
+  }
+  if (!/[0-9]/.test(password)) {
+    return isFrench
+      ? 'Le mot de passe doit contenir au moins un chiffre.'
+      : 'Password must contain at least one number.';
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return isFrench
+      ? 'Le mot de passe doit contenir au moins un caractère spécial (ex. ! @ # ?).'
+      : 'Password must contain at least one special character (e.g. ! @ # ?).';
+  }
+  return null;
+}
+
+function mapServerPasswordMessage(msg: string, isFrench: boolean): string {
+  const m: Record<string, { fr: string; en: string }> = {
+    'At least 8 characters': {
+      fr: 'Le mot de passe doit contenir au moins 8 caractères.',
+      en: 'Password must be at least 8 characters.',
+    },
+    'Must contain an uppercase letter': {
+      fr: 'Le mot de passe doit contenir au moins une lettre majuscule.',
+      en: 'Password must contain an uppercase letter.',
+    },
+    'Must contain a number': {
+      fr: 'Le mot de passe doit contenir au moins un chiffre.',
+      en: 'Password must contain a number.',
+    },
+    'Must contain a special character': {
+      fr: 'Le mot de passe doit contenir au moins un caractère spécial.',
+      en: 'Password must contain a special character.',
+    },
+  };
+  const row = m[msg];
+  if (row) {
+    return isFrench ? row.fr : row.en;
+  }
+  return msg;
+}
 
 const SignupScreen = ({ navigation }: Props) => {
   const dispatch = useAppDispatch();
+  const { i18n } = useTranslation();
   const { colors } = useAppSelector(selectTheme);
 
-  // Step tracking
-  const [step, setStep] = useState(1);
+  const isFrench = i18n.language !== 'en';
 
-  // Step 1 fields
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-
-  // Step 2 fields
-  const [educationLevel, setEducationLevel] = useState<EducationLevel | null>(null);
-  const [grade, setGrade] = useState<number | null>(null);
-  const [universityYear, setUniversityYear] = useState<number | null>(null);
-
-  // Step 3 fields
-  const [stream, setStream] = useState<StreamType | null>(null);
-
+  const [lawRegion, setLawRegion] = useState<LawRegion | null>(null);
+  const [lawUniversity, setLawUniversity] = useState<string | null>(null);
+  const [lawMajor, setLawMajor] = useState<LawMajor | null>(null);
+  const [lawAcademicLevel, setLawAcademicLevel] = useState<LawAcademicLevel | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [regionExpanded, setRegionExpanded] = useState(false);
+  const [universityExpanded, setUniversityExpanded] = useState(false);
+  const [majorExpanded, setMajorExpanded] = useState(false);
+  const [levelExpanded, setLevelExpanded] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(40)).current;
@@ -112,81 +167,57 @@ const SignupScreen = ({ navigation }: Props) => {
     ]).start();
   }, [fadeAnim, slideAnim, formSlide, formFade]);
 
-  const validateStep1 = (): boolean => {
-    if (
-      !username.trim() ||
-      !email.trim() ||
-      !password.trim() ||
-      !confirmPassword.trim()
-    ) {
-      setError('Please fill in all fields.');
+  const universities = useMemo(
+    () => (lawRegion ? LAW_UNIVERSITIES_BY_REGION[lawRegion] : []),
+    [lawRegion],
+  );
+
+  const validateForm = (): boolean => {
+    if (!username.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
+      setError(isFrench ? 'Veuillez remplir tous les champs.' : 'Please fill in all fields.');
       return false;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(isFrench ? 'Les mots de passe ne correspondent pas.' : 'Passwords do not match.');
       return false;
     }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+    const pwdErr = getPasswordRuleError(password, isFrench);
+    if (pwdErr) {
+      setError(pwdErr);
       return false;
     }
-    if (!/[A-Z]/.test(password)) {
-      setError('Password must contain an uppercase letter.');
+    if (!lawRegion) {
+      setError(isFrench ? 'Veuillez sélectionner votre région.' : 'Please select your region.');
       return false;
     }
-    if (!/[0-9]/.test(password)) {
-      setError('Password must contain a number.');
+    if (!lawUniversity) {
+      setError(
+        isFrench ? 'Veuillez sélectionner votre université.' : 'Please select your university.',
+      );
       return false;
     }
-    if (!/[^A-Za-z0-9]/.test(password)) {
-      setError('Password must contain a special character.');
+    if (!lawMajor) {
+      setError(isFrench ? 'Veuillez sélectionner votre spécialité.' : 'Please select your major.');
       return false;
     }
-    return true;
-  };
-
-  const validateStep2 = (): boolean => {
-    if (!educationLevel) {
-      setError('Please select your education level.');
-      return false;
-    }
-    if (educationLevel === 'HIGH_SCHOOL' && grade == null) {
-      setError('Please select your grade.');
-      return false;
-    }
-    if (educationLevel === 'UNIVERSITY' && universityYear == null) {
-      setError('Please select your year.');
+    if (!lawAcademicLevel) {
+      setError(
+        isFrench
+          ? "Veuillez sélectionner votre niveau d'études."
+          : 'Please select your academic level.',
+      );
       return false;
     }
     return true;
-  };
-
-  const validateStep3 = (): boolean => {
-    if (!stream) {
-      setError('Please select your stream.');
-      return false;
-    }
-    return true;
-  };
-
-  const handleNext = () => {
-    setError('');
-    if (step === 1 && validateStep1()) {
-      setStep(2);
-    } else if (step === 2 && validateStep2()) {
-      setStep(3);
-    }
-  };
-
-  const handleBack = () => {
-    setError('');
-    if (step > 1) {
-      setStep(step - 1);
-    }
   };
 
   const handleSignup = async () => {
-    if (!validateStep3()) return;
+    if (!validateForm()) {
+      return;
+    }
+    if (!lawRegion || !lawUniversity || !lawMajor || !lawAcademicLevel) {
+      return;
+    }
 
     setError('');
     setLoading(true);
@@ -201,17 +232,36 @@ const SignupScreen = ({ navigation }: Props) => {
             name: username,
             email,
             password,
-            educationLevel,
-            grade: educationLevel === 'HIGH_SCHOOL' ? grade : undefined,
-            universityYear: educationLevel === 'UNIVERSITY' ? universityYear : undefined,
-            stream,
+            lawRegion,
+            lawUniversity,
+            lawMajor,
+            lawAcademicLevel,
           }),
         },
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        setError(data.message ?? 'Registration failed. Please try again.');
+        const data = await response.json().catch(() => ({}));
+        if (response.status === 400 && Array.isArray(data.errors)) {
+          const pwdIssue = data.errors.find(
+            (issue: { path?: string[] }) => issue.path?.[0] === 'password',
+          );
+          if (pwdIssue?.message) {
+            setError(mapServerPasswordMessage(pwdIssue.message, isFrench));
+            return;
+          }
+          const first = data.errors[0];
+          if (first?.message) {
+            setError(first.message);
+            return;
+          }
+        }
+        setError(
+          data.message ??
+            (isFrench
+              ? "Échec de l'inscription. Veuillez réessayer."
+              : 'Registration failed. Please try again.'),
+        );
         return;
       }
 
@@ -224,337 +274,75 @@ const SignupScreen = ({ navigation }: Props) => {
         }),
       );
     } catch {
-      setError('Unable to connect. Please try again.');
+      setError(
+        isFrench
+          ? 'Impossible de se connecter. Veuillez réessayer.'
+          : 'Unable to connect. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const renderStepIndicator = () => (
-    <View style={styles.stepIndicator}>
-      {[1, 2, 3].map(s => (
-        <View
-          key={s}
-          style={[
-            styles.stepDot,
-            {
-              backgroundColor: s <= step ? colors.primary : colors.border,
-              width: s === step ? 24 : 8,
-            },
-          ]}
-        />
-      ))}
-    </View>
-  );
-
-  const renderStep1 = () => (
-    <>
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: colors.muted }]}>Username</Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.card,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder="Choose a username"
-          placeholderTextColor={colors.highlight}
-          value={username}
-          onChangeText={setUsername}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: colors.muted }]}>Email</Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.card,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder="Enter your email"
-          placeholderTextColor={colors.highlight}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: colors.muted }]}>Password</Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.card,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder="Create a password"
-          placeholderTextColor={colors.highlight}
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <Text style={[styles.label, { color: colors.muted }]}>Confirm Password</Text>
-        <TextInput
-          style={[
-            styles.input,
-            {
-              backgroundColor: colors.card,
-              color: colors.text,
-              borderColor: colors.border,
-            },
-          ]}
-          placeholder="Confirm your password"
-          placeholderTextColor={colors.highlight}
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />
-      </View>
-
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: colors.primary }]}
-        onPress={handleNext}
-        activeOpacity={0.8}>
-        <Text style={[styles.buttonText, { color: colors.primaryForeground }]}>
-          Next →
-        </Text>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderStep2 = () => (
-    <>
-      <Text style={[styles.sectionTitle, { color: colors.text }]}>
-        I am in:
-      </Text>
-
-      <View style={styles.chipRow}>
-        <TouchableOpacity
-          style={[
-            styles.levelChip,
-            {
-              backgroundColor:
-                educationLevel === 'HIGH_SCHOOL' ? colors.primary : colors.card,
-              borderColor:
-                educationLevel === 'HIGH_SCHOOL' ? colors.primary : colors.border,
-            },
-          ]}
-          onPress={() => {
-            setEducationLevel('HIGH_SCHOOL');
-            setGrade(null);
-            setUniversityYear(null);
-            setStream(null);
-          }}
-          activeOpacity={0.8}>
-          <Text style={{ fontSize: 24 }}>🏫</Text>
-          <Text
-            style={[
-              styles.chipLabel,
-              {
-                color: educationLevel === 'HIGH_SCHOOL' ? '#fff' : colors.text,
-              },
-            ]}>
-            High School
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.levelChip,
-            {
-              backgroundColor:
-                educationLevel === 'UNIVERSITY' ? colors.primary : colors.card,
-              borderColor:
-                educationLevel === 'UNIVERSITY' ? colors.primary : colors.border,
-            },
-          ]}
-          onPress={() => {
-            setEducationLevel('UNIVERSITY');
-            setGrade(null);
-            setUniversityYear(null);
-            setStream(null);
-          }}
-          activeOpacity={0.8}>
-          <Text style={{ fontSize: 24 }}>🎓</Text>
-          <Text
-            style={[
-              styles.chipLabel,
-              {
-                color: educationLevel === 'UNIVERSITY' ? '#fff' : colors.text,
-              },
-            ]}>
-            University
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {educationLevel === 'HIGH_SCHOOL' && (
-        <>
-          <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 16 }]}>
-            Select your grade:
-          </Text>
-          <View style={styles.chipRow}>
-            {HIGH_SCHOOL_GRADES.map(g => (
-              <TouchableOpacity
-                key={g.value}
-                style={[
-                  styles.gradeChip,
-                  {
-                    backgroundColor: grade === g.value ? colors.primary : colors.card,
-                    borderColor: grade === g.value ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => setGrade(g.value)}
-                activeOpacity={0.8}>
-                <Text
-                  style={{
-                    color: grade === g.value ? '#fff' : colors.text,
-                    fontSize: 13,
-                    fontWeight: '600',
-                  }}>
-                  {g.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
-
-      {educationLevel === 'UNIVERSITY' && (
-        <>
-          <Text style={[styles.sectionTitle, { color: colors.text, marginTop: 16 }]}>
-            Select your year:
-          </Text>
-          <View style={styles.chipRow}>
-            {UNIVERSITY_YEARS.map(y => (
-              <TouchableOpacity
-                key={y.value}
-                style={[
-                  styles.gradeChip,
-                  {
-                    backgroundColor:
-                      universityYear === y.value ? colors.primary : colors.card,
-                    borderColor:
-                      universityYear === y.value ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => setUniversityYear(y.value)}
-                activeOpacity={0.8}>
-                <Text
-                  style={{
-                    color: universityYear === y.value ? '#fff' : colors.text,
-                    fontSize: 13,
-                    fontWeight: '600',
-                  }}>
-                  {y.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
-
-      <View style={styles.navRow}>
-        <TouchableOpacity
-          style={[styles.navButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={handleBack}
-          activeOpacity={0.8}>
-          <Text style={[styles.navButtonText, { color: colors.text }]}>← Back</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.navButton, { backgroundColor: colors.primary }]}
-          onPress={handleNext}
-          activeOpacity={0.8}>
-          <Text style={[styles.navButtonText, { color: colors.primaryForeground }]}>
-            Next →
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </>
-  );
-
-  const renderStep3 = () => {
-    const streams =
-      educationLevel === 'HIGH_SCHOOL' ? HIGH_SCHOOL_STREAMS : UNIVERSITY_STREAMS;
-
+  const renderCompactLocalizedSelect = <T extends string>(
+    title: string,
+    options: LocalizedOption<T>[],
+    selected: T | null,
+    expanded: boolean,
+    setExpanded: (v: boolean) => void,
+    onSelect: (value: T) => void,
+  ) => {
+    const selectedLabel = selected
+      ? options.find(option => option.value === selected)
+      : null;
     return (
-      <>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          What is your stream?
-        </Text>
-
-        <View style={styles.streamGrid}>
-          {streams.map(s => (
-            <TouchableOpacity
-              key={s.value}
-              style={[
-                styles.streamChip,
-                {
-                  backgroundColor:
-                    stream === s.value ? colors.primary : colors.card,
-                  borderColor:
-                    stream === s.value ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setStream(s.value)}
-              activeOpacity={0.8}>
-              <Text style={{ fontSize: 20 }}>{s.icon}</Text>
-              <Text
-                style={{
-                  color: stream === s.value ? '#fff' : colors.text,
-                  fontSize: 13,
-                  fontWeight: '600',
-                  marginLeft: 8,
-                }}>
-                {s.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.navRow}>
-          <TouchableOpacity
-            style={[styles.navButton, { backgroundColor: colors.card, borderColor: colors.border }]}
-            onPress={handleBack}
-            activeOpacity={0.8}>
-            <Text style={[styles.navButtonText, { color: colors.text }]}>← Back</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.navButton,
-              { backgroundColor: colors.primary },
-              loading && styles.buttonDisabled,
-            ]}
-            onPress={() => void handleSignup()}
-            disabled={loading}
-            activeOpacity={0.8}>
-            <Text style={[styles.navButtonText, { color: colors.primaryForeground }]}>
-              {loading ? 'Creating...' : '✓ Create'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </>
+      <View style={styles.inputGroup}>
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>{title}</Text>
+        <TouchableOpacity
+          style={[styles.dropdownTrigger, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => setExpanded(!expanded)}
+          activeOpacity={0.8}>
+          <Text style={{ color: colors.text, fontSize: 14, flex: 1, paddingRight: 8 }}>
+            {selectedLabel
+              ? isFrench
+                ? selectedLabel.labelFr
+                : selectedLabel.labelEn
+              : isFrench
+                ? 'Choisir…'
+                : 'Select…'}
+          </Text>
+          <Text style={{ color: colors.muted }}>{expanded ? '▲' : '▼'}</Text>
+        </TouchableOpacity>
+        {expanded && (
+          <ScrollView
+            nestedScrollEnabled
+            style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.card }]}>
+            {options.map(option => (
+              <TouchableOpacity
+                key={option.value}
+                style={[
+                  styles.dropdownItem,
+                  selected === option.value && { backgroundColor: colors.primary + '22' },
+                ]}
+                onPress={() => {
+                  onSelect(option.value);
+                  setExpanded(false);
+                }}
+                activeOpacity={0.8}>
+                <Text style={{ color: colors.text, fontSize: 14 }}>
+                  {isFrench ? option.labelFr : option.labelEn}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        )}
+      </View>
     );
   };
 
-  const stepTitles = ['Account Details', 'Education Level', 'Your Specialty'];
+  const passwordHint = isFrench
+    ? '8 caractères minimum, une majuscule, un chiffre et un caractère spécial.'
+    : 'At least 8 characters, one uppercase letter, one number, and one special character.';
 
   return (
     <KeyboardAvoidingView
@@ -572,19 +360,45 @@ const SignupScreen = ({ navigation }: Props) => {
               transform: [{ translateY: slideAnim }],
             },
           ]}>
-          <View
-            style={[styles.logoContainer, { backgroundColor: colors.primary }]}>
-            <Text style={[styles.logoText, { color: colors.primaryForeground }]}>
-              Y
-            </Text>
+          <View style={[styles.logoContainer, { backgroundColor: colors.primary }]}>
+            <Text style={[styles.logoText, { color: colors.primaryForeground }]}>Y</Text>
           </View>
           <Text style={[styles.title, { color: colors.text }]}>
-            Create Account
+            {isFrench ? 'Créer un compte' : 'Create Account'}
           </Text>
+          <View style={styles.langRow}>
+            <TouchableOpacity
+              style={[
+                styles.langChip,
+                i18n.language.startsWith('en')
+                  ? { backgroundColor: colors.primary }
+                  : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+              ]}
+              onPress={() => void changeLanguage('en')}
+              activeOpacity={0.8}>
+              <Text style={[styles.langChipText, { color: i18n.language.startsWith('en') ? '#fff' : colors.text }]}>
+                EN
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.langChip,
+                i18n.language.startsWith('fr')
+                  ? { backgroundColor: colors.primary }
+                  : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+              ]}
+              onPress={() => void changeLanguage('fr')}
+              activeOpacity={0.8}>
+              <Text style={[styles.langChipText, { color: i18n.language.startsWith('fr') ? '#fff' : colors.text }]}>
+                FR
+              </Text>
+            </TouchableOpacity>
+          </View>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Step {step}: {stepTitles[step - 1]}
+            {isFrench
+              ? 'Remplissez le formulaire ci-dessous pour vous inscrire.'
+              : 'Fill out the form below to sign up.'}
           </Text>
-          {renderStepIndicator()}
         </Animated.View>
 
         <Animated.View
@@ -596,31 +410,202 @@ const SignupScreen = ({ navigation }: Props) => {
             },
           ]}>
           {error ? (
-            <View
-              style={[
-                styles.errorContainer,
-                { backgroundColor: colors.error + '15' },
-              ]}>
-              <Text style={[styles.errorText, { color: colors.error }]}>
-                {error}
-              </Text>
+            <View style={[styles.errorContainer, { backgroundColor: colors.error + '15' }]}>
+              <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
             </View>
           ) : null}
 
-          {step === 1 && renderStep1()}
-          {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.muted }]}>
+              {isFrench ? "Nom d'utilisateur" : 'Username'}
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder={isFrench ? "Choisissez un nom d'utilisateur" : 'Choose a username'}
+              placeholderTextColor={colors.highlight}
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.muted }]}>Email</Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder={isFrench ? 'Entrez votre e-mail' : 'Enter your email'}
+              placeholderTextColor={colors.highlight}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.muted }]}>
+              {isFrench ? 'Mot de passe' : 'Password'}
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder={isFrench ? 'Créez un mot de passe' : 'Create a password'}
+              placeholderTextColor={colors.highlight}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            <Text style={[styles.hint, { color: colors.muted }]}>{passwordHint}</Text>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: colors.muted }]}>
+              {isFrench ? 'Confirmez le mot de passe' : 'Confirm password'}
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.card,
+                  color: colors.text,
+                  borderColor: colors.border,
+                },
+              ]}
+              placeholder={isFrench ? 'Confirmez votre mot de passe' : 'Confirm your password'}
+              placeholderTextColor={colors.highlight}
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
+          </View>
+
+          {renderCompactLocalizedSelect(
+            isFrench ? 'Sélectionnez votre région' : 'Select your region',
+            REGION_OPTIONS,
+            lawRegion,
+            regionExpanded,
+            setRegionExpanded,
+            value => {
+              setLawRegion(value);
+              setLawUniversity(null);
+            },
+          )}
+
+          <View style={styles.inputGroup}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              {isFrench ? 'Sélectionnez votre université' : 'Select your university'}
+            </Text>
+            <TouchableOpacity
+              style={[styles.dropdownTrigger, { backgroundColor: colors.card, borderColor: colors.border }]}
+              onPress={() => setUniversityExpanded(!universityExpanded)}
+              activeOpacity={0.8}
+              disabled={!lawRegion}>
+              <Text
+                style={{
+                  color: lawRegion ? colors.text : colors.muted,
+                  fontSize: 14,
+                  flex: 1,
+                  paddingRight: 8,
+                }}>
+                {!lawRegion
+                  ? isFrench
+                    ? 'Choisissez d’abord une région'
+                    : 'Choose a region first'
+                  : lawUniversity ?? (isFrench ? 'Choisir…' : 'Select…')}
+              </Text>
+              <Text style={{ color: colors.muted }}>{universityExpanded ? '▲' : '▼'}</Text>
+            </TouchableOpacity>
+            {universityExpanded && lawRegion && (
+              <ScrollView
+                nestedScrollEnabled
+                style={[styles.dropdownList, { borderColor: colors.border, backgroundColor: colors.card }]}>
+                {universities.map(university => (
+                  <TouchableOpacity
+                    key={university}
+                    style={[
+                      styles.dropdownItem,
+                      lawUniversity === university && { backgroundColor: colors.primary + '22' },
+                    ]}
+                    onPress={() => {
+                      setLawUniversity(university);
+                      setUniversityExpanded(false);
+                    }}
+                    activeOpacity={0.8}>
+                    <Text style={{ color: colors.text, fontSize: 14 }}>{university}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
+          {renderCompactLocalizedSelect(
+            isFrench ? 'Sélectionnez votre spécialité' : 'Select your major',
+            MAJOR_OPTIONS,
+            lawMajor,
+            majorExpanded,
+            setMajorExpanded,
+            setLawMajor,
+          )}
+
+          {renderCompactLocalizedSelect(
+            isFrench ? "Sélectionnez votre niveau d'études" : 'Select your academic level',
+            LEVEL_OPTIONS,
+            lawAcademicLevel,
+            levelExpanded,
+            setLevelExpanded,
+            setLawAcademicLevel,
+          )}
+
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              { backgroundColor: colors.primary },
+              loading && styles.buttonDisabled,
+            ]}
+            onPress={() => void handleSignup()}
+            disabled={loading}
+            activeOpacity={0.8}>
+            <Text style={[styles.submitButtonText, { color: colors.primaryForeground }]}>
+              {loading
+                ? isFrench
+                  ? 'Création…'
+                  : 'Creating…'
+                : isFrench
+                  ? 'Créer mon compte'
+                  : 'Create account'}
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.muted }]}>
-              Already have an account?
+              {isFrench ? 'Vous avez déjà un compte ?' : 'Already have an account?'}
             </Text>
-            <TouchableOpacity
-              onPress={() => navigation.replace('Login')}
-              activeOpacity={0.7}>
+            <TouchableOpacity onPress={() => navigation.replace('Login')} activeOpacity={0.7}>
               <Text style={[styles.footerLink, { color: colors.primary }]}>
                 {' '}
-                Sign In
+                {isFrench ? 'Se connecter' : 'Sign in'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -636,13 +621,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 40,
+    paddingTop: 32,
+    paddingBottom: 48,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
   },
   logoContainer: {
     width: 72,
@@ -650,7 +635,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   logoText: {
     fontSize: 32,
@@ -660,20 +645,30 @@ const styles = StyleSheet.create({
     fontSize: 28,
     ...DefaultStyles.fonts.semiBold,
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 15,
     ...DefaultStyles.fonts.regular,
+    textAlign: 'center',
+    paddingHorizontal: 16,
+    alignSelf: 'stretch',
   },
-  stepIndicator: {
+  langRow: {
     flexDirection: 'row',
-    gap: 6,
-    marginTop: 12,
-    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+    justifyContent: 'center',
+    width: '100%',
   },
-  stepDot: {
-    height: 8,
-    borderRadius: 4,
+  langChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  langChipText: {
+    fontSize: 12,
+    ...DefaultStyles.fonts.semiBold,
   },
   form: {
     gap: 16,
@@ -695,6 +690,12 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.medium,
     marginLeft: 4,
   },
+  hint: {
+    fontSize: 12,
+    ...DefaultStyles.fonts.regular,
+    marginLeft: 4,
+    marginTop: 2,
+  },
   input: {
     height: 50,
     borderWidth: 1,
@@ -708,79 +709,45 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.semiBold,
     marginBottom: 4,
   },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  levelChip: {
-    flex: 1,
-    minWidth: 120,
-    paddingVertical: 16,
-    borderRadius: 14,
+  dropdownTrigger: {
     borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    justifyContent: 'space-between',
   },
-  chipLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+  dropdownList: {
+    maxHeight: 150,
+    borderWidth: 1,
+    borderRadius: 12,
+    marginTop: 6,
   },
-  gradeChip: {
-    paddingHorizontal: 16,
+  dropdownItem: {
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
   },
-  streamGrid: {
-    gap: 10,
-  },
-  streamChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-  },
-  navRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  navButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  navButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  button: {
+  submitButton: {
     height: 52,
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
   },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
+  submitButtonText: {
     fontSize: 16,
     ...DefaultStyles.fonts.semiBold,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 16,
+    flexWrap: 'wrap',
   },
   footerText: {
     fontSize: 14,

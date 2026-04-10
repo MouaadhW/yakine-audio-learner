@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id               String          @id @default(cuid())
-  email            String          @unique
+  id               String             @id @default(cuid())
+  email            String             @unique
   name             String
   password         String
-  role             Role            @default(STUDENT)
-  language         String          @default("fr")
-  banned           Boolean         @default(false)
+  role             Role               @default(STUDENT)
+  subscriptionTier SubscriptionTier   @default(FREE)
+  language         String             @default("fr")
+  banned           Boolean            @default(false)
   currentSessionId String?
   lastLoginAt      DateTime?
   createdAt        DateTime        @default(now())
@@ -22,12 +23,40 @@ model User {
   grade            Int?
   universityYear   Int?
   stream           Stream?
+  lawRegion        LawRegion?
+  lawUniversity    String?
+  lawMajor         LawMajor?
+  lawAcademicLevel LawAcademicLevel?
 
-  lessons       Lesson[]         @relation("TeacherLessons")
-  progress      Progress[]
-  downloads     Download[]
-  refreshTokens RefreshToken[]
-  teacherScopes TeacherScope[]
+  lessons            Lesson[]              @relation("TeacherLessons")
+  audioGenerationJobs AudioGenerationJob[] @relation("TeacherAudioGenerationJobs")
+  progress           Progress[]
+  downloads          Download[]
+  refreshTokens      RefreshToken[]
+  teacherScopes      TeacherScope[]
+  teacherLawSubjects TeacherLawSubject[]
+}
+
+enum LawRegion {
+  TUNIS
+  SOUSSE
+  SFAX
+  JENDOUBA
+  KAIROUAN
+  GABES
+  NABEUL
+  BIZERTE
+}
+
+enum LawMajor {
+  DROIT_PRIVE
+  DROIT_PUBLIC
+}
+
+enum LawAcademicLevel {
+  L1
+  L2
+  L3
 }
 
 model RefreshToken {
@@ -46,24 +75,46 @@ enum Role {
   ADMIN
 }
 
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+}
+
 enum EducationLevel {
   HIGH_SCHOOL
   UNIVERSITY
 }
 
 model Subject {
-  id             String          @id @default(cuid())
-  nameEn         String
-  nameFr         String
-  slugEn         String          @default("")
-  slugFr         String          @default("")
-  stream         Stream
-  icon           String          @default("📚")
-  color          String          @default("#6C63FF")
-  educationLevel EducationLevel  @default(HIGH_SCHOOL)
-  grade          Int?
-  universityYear Int?
-  chapters       Chapter[]
+  id               String             @id @default(cuid())
+  nameEn           String
+  nameFr           String
+  slugEn           String             @default("")
+  slugFr           String             @default("")
+  stream           Stream
+  icon             String             @default("📚")
+  color            String             @default("#6C63FF")
+  educationLevel   EducationLevel     @default(HIGH_SCHOOL)
+  grade            Int?
+  universityYear   Int?
+  programType      ProgramType        @default(BAC)
+  contentTier      ContentTier        @default(FREE_GLOBAL)
+  lawUniversity    String?
+  lawAcademicLevel LawAcademicLevel?
+  lawMajor         LawMajor?
+  semester         Int?
+  chapters         Chapter[]
+  teacherLawSubjects TeacherLawSubject[]
+}
+
+enum ProgramType {
+  BAC
+  LAW
+}
+
+enum ContentTier {
+  FREE_GLOBAL
+  PREMIUM_SCOPED
 }
 
 enum Stream {
@@ -71,6 +122,7 @@ enum Stream {
   LITERARY
   ECONOMIC
   TECHNICAL
+  LAW
 }
 
 model Chapter {
@@ -84,23 +136,102 @@ model Chapter {
 }
 
 model Lesson {
-  id          String       @id @default(cuid())
+  id          String          @id @default(cuid())
   titleEn     String
   titleFr     String
   audioUrl    String
-  scriptEn    String       @db.Text
-  scriptFr    String       @db.Text
+  audioUrlEn  String?
+  audioUrlFr  String?
+  audioUrlAr  String?
+  scriptEn    String          @db.Text
+  scriptFr    String          @db.Text
+  scriptAr    String?         @db.Text
+  transcriptEn String?        @db.Text
+  transcriptFr String?        @db.Text
+  transcriptAr String?        @db.Text
   duration    Int
-  sortOrder   Int          @default(0)
-  status      LessonStatus @default(PUBLISHED)
+  sortOrder   Int             @default(0)
+  status      LessonStatus    @default(PUBLISHED)
+  audience    LessonAudience  @default(FREE)
+  defaultAudioLanguage ComposerLanguage  @default(FR)
+  audioSourceType     LessonAudioSourceType @default(LEGACY)
+  isTeacherComposer   Boolean         @default(false)
+  composerAutoPublish Boolean         @default(false)
+  generationRequestedAt DateTime?
+  generatedAt          DateTime?
   chapterId   String
-  chapter     Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapter     Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   teacherId   String
-  teacher     User         @relation("TeacherLessons", fields: [teacherId], references: [id])
-  createdAt   DateTime     @default(now())
+  teacher     User            @relation("TeacherLessons", fields: [teacherId], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @default(now()) @updatedAt
 
   progress    Progress[]
   downloads   Download[]
+  generationJobs AudioGenerationJob[]
+}
+
+enum LessonAudience {
+  FREE
+  PREMIUM
+}
+
+enum ComposerLanguage {
+  EN
+  FR
+  AR
+}
+
+enum LessonAudioSourceType {
+  LEGACY
+  MANUAL_UPLOAD
+  MANUAL_RECORDING
+  AI_TTS
+}
+
+enum TtsProvider {
+  ELEVENLABS
+}
+
+enum AudioGenerationStatus {
+  QUEUED
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELED
+}
+
+model AudioGenerationJob {
+  id                 String               @id @default(cuid())
+  lessonId           String
+  lesson             Lesson               @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  teacherId          String
+  teacher            User                 @relation("TeacherAudioGenerationJobs", fields: [teacherId], references: [id], onDelete: Cascade)
+  provider           TtsProvider          @default(ELEVENLABS)
+  status             AudioGenerationStatus @default(QUEUED)
+  requestedLanguages Json
+  voiceSelection     Json?
+  errorMessage       String?
+  attemptCount       Int                  @default(0)
+  requestedAt        DateTime             @default(now())
+  startedAt          DateTime?
+  completedAt        DateTime?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  @@index([lessonId])
+  @@index([status, createdAt])
+}
+
+model TeacherLawSubject {
+  id        String   @id @default(cuid())
+  teacherId String
+  subjectId String
+  teacher   User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([teacherId, subjectId])
 }
 
 enum LessonStatus {

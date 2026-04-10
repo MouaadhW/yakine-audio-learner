@@ -24,10 +24,12 @@ import { RootStackParamList } from '@/navigations';
 import {
   CheckCircleIcon,
   DownloadIcon,
+  LockIcon,
   PencilIcon,
   PlayCircleIcon,
   Trash2Icon,
   UploadIcon,
+  WandSparklesIcon,
 } from 'lucide-react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -48,6 +50,14 @@ const lessonFields: FormField[] = [
   { key: 'scriptFr', label: 'Script (French)', multiline: true },
   { key: 'duration', label: 'Duration (seconds)', keyboardType: 'numeric' },
   { key: 'sortOrder', label: 'Sort Order', keyboardType: 'numeric' },
+  {
+    key: 'audience',
+    label: 'Access',
+    options: [
+      { value: 'FREE', label: 'Free (all eligible students)' },
+      { value: 'PREMIUM', label: 'Paid (premium subscribers only)' },
+    ],
+  },
 ];
 
 const formatDuration = (seconds: number) => {
@@ -124,7 +134,11 @@ const LessonListScreen = ({ route, navigation }: Props) => {
 
   const openAdd = useCallback(() => {
     setEditingLesson(null);
-    setFormValues({ sortOrder: String((lessons?.length ?? 0) + 1), duration: '0' });
+    setFormValues({
+      sortOrder: String((lessons?.length ?? 0) + 1),
+      duration: '0',
+      audience: 'FREE',
+    });
     setShowModal(true);
   }, [lessons]);
 
@@ -138,6 +152,7 @@ const LessonListScreen = ({ route, navigation }: Props) => {
       scriptFr: item.scriptFr ?? '',
       duration: String(item.duration ?? 0),
       sortOrder: String(item.sortOrder),
+      audience: item.audience ?? 'FREE',
     });
     setShowModal(true);
   }, []);
@@ -198,6 +213,7 @@ const LessonListScreen = ({ route, navigation }: Props) => {
         scriptFr: formValues.scriptFr || undefined,
         duration: formValues.duration ? parseInt(formValues.duration, 10) : undefined,
         sortOrder: formValues.sortOrder ? parseInt(formValues.sortOrder, 10) : undefined,
+        audience: (formValues.audience as 'FREE' | 'PREMIUM') || 'FREE',
       };
 
       if (editingLesson) {
@@ -233,6 +249,15 @@ const LessonListScreen = ({ route, navigation }: Props) => {
   };
 
   const handleDownload = async (item: BACLesson) => {
+    if (item.locked && !canEditLesson(item)) {
+      Alert.alert(
+        isFr ? 'Contenu Premium' : 'Premium',
+        isFr
+          ? 'Les telechargements sont reserves aux abonnes Premium.'
+          : 'Downloads are available for Premium subscribers.',
+      );
+      return;
+    }
     if (downloadMap[item.id]?.status === 'downloading') {
       return;
     }
@@ -280,13 +305,27 @@ const LessonListScreen = ({ route, navigation }: Props) => {
 
   const renderItem = ({ item }: { item: BACLesson }) => {
     const editable = canEditLesson(item);
+    const locked = !!item.locked && !editable;
     return (
       <TouchableOpacity
         style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
-        onPress={() => navigation.navigate('AudioPlayer', { lesson: item })}
+        onPress={() => {
+          if (locked) {
+            Alert.alert(
+              isFr ? 'Contenu Premium' : 'Premium',
+              isFr
+                ? 'Cette lecon est reservee aux abonnes Premium.'
+                : 'This lesson is for Premium subscribers.',
+            );
+            return;
+          }
+          navigation.navigate('AudioPlayer', { lesson: item });
+        }}
         activeOpacity={0.7}>
         <View style={styles.cardLeft}>
-          {item.completed ? (
+          {locked ? (
+            <LockIcon size={28} color={colors.muted} />
+          ) : item.completed ? (
             <CheckCircleIcon size={28} color={colors.primary} />
           ) : (
             <PlayCircleIcon size={28} color={colors.primary} />
@@ -296,6 +335,9 @@ const LessonListScreen = ({ route, navigation }: Props) => {
           <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
             {isFr ? item.titleFr : item.titleEn}
           </Text>
+          {locked ? (
+            <Text style={[styles.premiumBadge, { color: '#a855f7' }]}>Premium</Text>
+          ) : null}
           <Text style={[styles.meta, { color: colors.muted }]}>
             🎙️ {item.teacherName} • ⏱️ {formatDuration(item.duration)}
           </Text>
@@ -364,11 +406,25 @@ const LessonListScreen = ({ route, navigation }: Props) => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {canAdd && (
+        <TouchableOpacity
+          style={[
+            styles.composerShortcut,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
+          onPress={() => navigation.navigate('TeacherAudioComposer', { chapterId })}
+          activeOpacity={0.8}>
+          <WandSparklesIcon size={16} color={colors.primary} />
+          <Text style={{ color: colors.text, fontSize: 13, fontWeight: '700' }}>
+            Open Teacher Audio Composer
+          </Text>
+        </TouchableOpacity>
+      )}
       <FlatList
         data={lessons}
         keyExtractor={item => item.id}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={{ padding: 16, paddingTop: canAdd ? 8 : 16 }}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       />
       {canAdd && <FAB onPress={openAdd} />}
@@ -422,6 +478,7 @@ const styles = StyleSheet.create({
   cardBody: { flex: 1 },
   cardRight: { alignItems: 'center', gap: 6 },
   title: { fontSize: 15, fontWeight: '600', marginBottom: 4 },
+  premiumBadge: { fontSize: 11, fontWeight: '700', marginBottom: 4, letterSpacing: 0.3 },
   meta: { fontSize: 12 },
   status: { fontSize: 12, marginTop: 4, fontWeight: '600' },
   downloadProgressTrack: {
@@ -454,6 +511,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+  composerShortcut: {
+    marginHorizontal: 16,
+    marginTop: 14,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 });
 

@@ -14,12 +14,18 @@ export type RootStackParamList = {
   AdminPanel: undefined;
   UserManagement: undefined;
   TeacherScopes: { teacherId: string; teacherName: string };
+  TeacherLawSubjects: {
+    teacherId: string;
+    teacherName: string;
+    lawUniversity: string | null;
+  };
   Moderation: undefined;
   Stats: undefined;
   BulkImportExport: undefined;
   Announcements: undefined;
   FeatureFlags: undefined;
   ContentManagement: undefined;
+  TeacherAudioComposer: { chapterId?: string } | undefined;
 };
 
 export type BottomTabParamList = {

@@ -1,6 +1,7 @@
 import { Text } from '@/components/ui/Text';
 import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
+import { BACLesson } from '@/lib/models';
 import { getProgress } from '@/lib/services/BacApi';
 import { useAudio } from '@/contexts/AudioContext';
 import { RootStackParamList } from '@/navigations';
@@ -12,7 +13,7 @@ import {
   RotateCwIcon,
   SearchIcon,
 } from 'lucide-react-native';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -26,6 +27,9 @@ import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AudioPlayer'>;
+type PlayerLanguage = 'EN' | 'FR' | 'AR';
+
+const PLAYER_LANGUAGES: PlayerLanguage[] = ['EN', 'FR', 'AR'];
 
 const formatTime = (seconds: number): string => {
   const m = Math.floor(seconds / 60)
@@ -37,11 +41,82 @@ const formatTime = (seconds: number): string => {
   return `${m}:${s}`;
 };
 
+const getPreferredLanguageFromApp = (language: string): PlayerLanguage => {
+  if (language.toLowerCase().startsWith('ar')) return 'AR';
+  if (language.toLowerCase().startsWith('en')) return 'EN';
+  return 'FR';
+};
+
+const getAudioUrlForLanguage = (
+  lesson: BACLesson,
+  language: PlayerLanguage,
+): string | undefined => {
+  const byLanguage =
+    language === 'EN'
+      ? lesson.audioUrlEn
+      : language === 'FR'
+        ? lesson.audioUrlFr
+        : lesson.audioUrlAr;
+
+  if (byLanguage) {
+    return byLanguage;
+  }
+
+  if (lesson.defaultAudioLanguage === language && lesson.audioUrl) {
+    return lesson.audioUrl;
+  }
+
+  if (!lesson.defaultAudioLanguage && language === 'FR' && lesson.audioUrl) {
+    return lesson.audioUrl;
+  }
+
+  return undefined;
+};
+
+const getScriptForLanguage = (lesson: BACLesson, language: PlayerLanguage): string => {
+  if (language === 'EN') return lesson.scriptEn || lesson.transcriptEn || '';
+  if (language === 'FR') return lesson.scriptFr || lesson.transcriptFr || '';
+  return lesson.scriptAr || lesson.transcriptAr || '';
+};
+
+const pickInitialLanguage = (lesson: BACLesson, appLanguage: string): PlayerLanguage => {
+  const available = PLAYER_LANGUAGES.filter(language => !!getAudioUrlForLanguage(lesson, language));
+  if (!available.length) {
+    return 'FR';
+  }
+
+  if (lesson.defaultAudioLanguage && available.includes(lesson.defaultAudioLanguage)) {
+    return lesson.defaultAudioLanguage;
+  }
+
+  const preferred = getPreferredLanguageFromApp(appLanguage);
+  if (available.includes(preferred)) {
+    return preferred;
+  }
+
+  return available[0];
+};
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const AudioPlayerScreen = ({ route }: Props) => {
   const { lesson } = route.params;
   const { colors } = useAppSelector(selectTheme);
   const { i18n } = useTranslation();
-  const isFr = i18n.language === 'fr';
+  const preferredLanguage = useMemo(
+    () => getPreferredLanguageFromApp(i18n.language),
+    [i18n.language],
+  );
+
+  const [activeLanguage, setActiveLanguage] = useState<PlayerLanguage>(() =>
+    pickInitialLanguage(lesson, i18n.language),
+  );
+
+  const availableLanguages = useMemo(
+    () => PLAYER_LANGUAGES.filter(language => !!getAudioUrlForLanguage(lesson, language)),
+    [lesson],
+  );
 
   // ── Global audio context (persistent across screens) ──
   const {
@@ -58,34 +133,74 @@ const AudioPlayerScreen = ({ route }: Props) => {
     cycleSpeed,
   } = useAudio();
 
+  const selectedAudioUrl = useMemo(
+    () => getAudioUrlForLanguage(lesson, activeLanguage) ?? lesson.audioUrl,
+    [lesson, activeLanguage],
+  );
+
   // ── Local UI state ──
   const [searchQuery, setSearchQuery] = useState('');
   const tabAnim = useRef(new Animated.Value(0)).current;
   const [activeTab, setActiveTab] = useState<'player' | 'script'>('player');
 
-  const script = isFr ? lesson.scriptFr : lesson.scriptEn;
-  const title = isFr ? lesson.titleFr : lesson.titleEn;
+  const script = useMemo(() => {
+    const primary = getScriptForLanguage(lesson, activeLanguage).trim();
+    if (primary) {
+      return primary;
+    }
+
+    const preferred = getScriptForLanguage(lesson, preferredLanguage).trim();
+    if (preferred) {
+      return preferred;
+    }
+
+    return lesson.scriptFr || lesson.scriptEn || '';
+  }, [activeLanguage, lesson, preferredLanguage]);
+
+  const title = i18n.language.toLowerCase().startsWith('en')
+    ? lesson.titleEn
+    : lesson.titleFr;
+
+  useEffect(() => {
+    setActiveLanguage(pickInitialLanguage(lesson, i18n.language));
+  }, [lesson.id, i18n.language]);
+
+  useEffect(() => {
+    if (!availableLanguages.length) {
+      return;
+    }
+    if (!availableLanguages.includes(activeLanguage)) {
+      setActiveLanguage(availableLanguages[0]);
+    }
+  }, [activeLanguage, availableLanguages]);
 
   // ── Load lesson on mount (with resume position from saved progress) ──
   useEffect(() => {
-    // Only load if it's a different lesson than what's currently playing
+    const lessonForPlayback: BACLesson = {
+      ...lesson,
+      audioUrl: selectedAudioUrl,
+    };
+
     if (!currentLesson || currentLesson.id !== lesson.id) {
-      const fetchAndLoad = async () => {
+      const loadWithResume = async () => {
         try {
           const progress = await getProgress();
           const entry = progress.find(p => p.lessonId === lesson.id);
-          const resumePos =
-            entry && !entry.completed ? entry.position : 0;
-          loadLesson(lesson, resumePos);
+          const resumePos = entry && !entry.completed ? entry.position : 0;
+          loadLesson(lessonForPlayback, resumePos);
         } catch {
-          // Couldn't fetch progress — just start from beginning
-          loadLesson(lesson, 0);
+          loadLesson(lessonForPlayback, 0);
         }
       };
-      void fetchAndLoad();
+      void loadWithResume();
+      return;
+    }
+
+    if (currentLesson.audioUrl !== lessonForPlayback.audioUrl) {
+      loadLesson(lessonForPlayback, position);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lesson.id]);
+  }, [lesson.id, selectedAudioUrl, currentLesson?.audioUrl]);
 
   // ── Tab switching ──
   const switchTab = (tab: 'player' | 'script') => {
@@ -101,12 +216,13 @@ const AudioPlayerScreen = ({ route }: Props) => {
     if (!searchQuery.trim()) {
       return (
         <Text style={[styles.scriptText, { color: colors.text }]}>
-          {script}
+          {script || (i18n.language === 'fr' ? 'Script indisponible.' : 'Script not available.')}
         </Text>
       );
     }
 
-    const parts = script.split(new RegExp(`(${searchQuery})`, 'gi'));
+    const safeQuery = escapeRegExp(searchQuery.trim());
+    const parts = script.split(new RegExp(`(${safeQuery})`, 'gi'));
     return (
       <Text style={[styles.scriptText, { color: colors.text }]}>
         {parts.map((part, index) =>
@@ -146,8 +262,8 @@ const AudioPlayerScreen = ({ route }: Props) => {
                 },
               ]}>
               {tab === 'player'
-                ? `🎧 ${isFr ? 'Lecteur' : 'Player'}`
-                : '📄 Script'}
+                ? i18n.language === 'fr' ? 'Lecteur' : 'Player'
+                : 'Script'}
             </Text>
             {activeTab === tab && (
               <View
@@ -172,6 +288,32 @@ const AudioPlayerScreen = ({ route }: Props) => {
             <Text style={[styles.teacherName, { color: colors.muted }]}>
               🎙️ {lesson.teacherName}
             </Text>
+
+            <View style={styles.languageRow}>
+              {availableLanguages.map(language => (
+                <TouchableOpacity
+                  key={language}
+                  style={[
+                    styles.languageChip,
+                    {
+                      borderColor:
+                        activeLanguage === language ? colors.primary : colors.border,
+                      backgroundColor:
+                        activeLanguage === language ? `${colors.primary}20` : colors.card,
+                    },
+                  ]}
+                  onPress={() => setActiveLanguage(language)}>
+                  <Text
+                    style={{
+                      color: activeLanguage === language ? colors.primary : colors.text,
+                      fontSize: 12,
+                      fontWeight: '700',
+                    }}>
+                    {language}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           <View style={styles.sliderContainer}>
@@ -280,7 +422,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
             <TextInput
               style={[styles.searchInput, { color: colors.text }]}
               placeholder={
-                isFr
+                i18n.language.toLowerCase().startsWith('fr')
                   ? 'Rechercher dans le script...'
                   : 'Search in script...'
               }
@@ -295,6 +437,34 @@ const AudioPlayerScreen = ({ route }: Props) => {
               </TouchableOpacity>
             )}
           </View>
+
+          {!!availableLanguages.length && (
+            <View style={styles.scriptLanguageRow}>
+              {availableLanguages.map(language => (
+                <TouchableOpacity
+                  key={language}
+                  style={[
+                    styles.languageChip,
+                    {
+                      borderColor:
+                        activeLanguage === language ? colors.primary : colors.border,
+                      backgroundColor:
+                        activeLanguage === language ? `${colors.primary}20` : colors.card,
+                    },
+                  ]}
+                  onPress={() => setActiveLanguage(language)}>
+                  <Text
+                    style={{
+                      color: activeLanguage === language ? colors.primary : colors.text,
+                      fontSize: 12,
+                      fontWeight: '700',
+                    }}>
+                    {language}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <ScrollView
             style={styles.scriptScroll}
@@ -318,6 +488,19 @@ const styles = StyleSheet.create({
   trackInfo: { alignItems: 'center', gap: 6 },
   trackTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
   teacherName: { fontSize: 14 },
+  languageRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+    justifyContent: 'center',
+  },
+  languageChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
   sliderContainer: { width: '100%' },
   slider: { width: '100%', height: 40 },
   timeRow: {
@@ -351,6 +534,13 @@ const styles = StyleSheet.create({
   progressBar: { width: '100%', height: 4, borderRadius: 2 },
   progressFill: { height: 4, borderRadius: 2 },
   scriptSection: { flex: 1 },
+  scriptLanguageRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+    gap: 8,
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

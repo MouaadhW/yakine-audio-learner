@@ -79,4 +79,8 @@ export default {
   nowPlaying: 'En lecture',
   minutesListened: 'min écoutées',
   loadingSession: 'Chargement de votre session...',
+  subscriptionTierFree: 'Offre gratuite',
+  subscriptionTierPremium: 'Offre Premium',
+  semesterN: 'Semestre {{n}}',
+  subjectsOtherSemester: 'Autres matières',
 };

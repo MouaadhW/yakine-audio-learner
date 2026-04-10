@@ -1,8 +1,10 @@
 import { Text } from '@/components/ui/Text';
 import { selectTheme } from '@/features/themeSlice';
 import { useAppDispatch, useAppSelector } from '@/lib/hooks';
+import { changeLanguage } from '@/lib/i18n';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useRef, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Animated,
   Easing,
@@ -23,7 +25,9 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 const LoginScreen = ({ navigation }: Props) => {
   const dispatch = useAppDispatch();
+  const { i18n } = useTranslation();
   const { colors } = useAppSelector(selectTheme);
+  const isFrench = i18n.language !== 'en';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -68,7 +72,7 @@ const LoginScreen = ({ navigation }: Props) => {
 
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
-      setError('Please fill in all fields.');
+      setError(isFrench ? 'Veuillez remplir tous les champs.' : 'Please fill in all fields.');
       return;
     }
 
@@ -87,7 +91,10 @@ const LoginScreen = ({ navigation }: Props) => {
 
       if (!response.ok) {
         const data = await response.json();
-        setError(data.message ?? 'Invalid email or password.');
+        setError(
+          data.message ??
+            (isFrench ? 'Email ou mot de passe invalide.' : 'Invalid email or password.'),
+        );
         return;
       }
 
@@ -100,7 +107,11 @@ const LoginScreen = ({ navigation }: Props) => {
         }),
       );
     } catch {
-      setError('Unable to connect. Please try again.');
+      setError(
+        isFrench
+          ? 'Impossible de se connecter. Veuillez reessayer.'
+          : 'Unable to connect. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
@@ -128,9 +139,41 @@ const LoginScreen = ({ navigation }: Props) => {
               Y
             </Text>
           </View>
-          <Text style={[styles.title, { color: colors.text }]}>Welcome Back</Text>
+          <View style={[styles.langRow, { alignSelf: 'stretch' }]}>
+            <TouchableOpacity
+              style={[
+                styles.langChip,
+                i18n.language.startsWith('en')
+                  ? { backgroundColor: colors.primary }
+                  : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+              ]}
+              onPress={() => void changeLanguage('en')}
+              activeOpacity={0.8}>
+              <Text style={[styles.langChipText, { color: i18n.language.startsWith('en') ? '#fff' : colors.text }]}>
+                EN
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.langChip,
+                i18n.language.startsWith('fr')
+                  ? { backgroundColor: colors.primary }
+                  : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+              ]}
+              onPress={() => void changeLanguage('fr')}
+              activeOpacity={0.8}>
+              <Text style={[styles.langChipText, { color: i18n.language.startsWith('fr') ? '#fff' : colors.text }]}>
+                FR
+              </Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.title, { color: colors.text }]}>
+            {isFrench ? 'Bon retour' : 'Welcome Back'}
+          </Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>
-            Sign in to continue learning
+            {isFrench
+              ? 'Connectez-vous pour poursuivre votre apprentissage.'
+              : 'Sign in to continue learning.'}
           </Text>
         </Animated.View>
 
@@ -165,7 +208,7 @@ const LoginScreen = ({ navigation }: Props) => {
                   borderColor: colors.border,
                 },
               ]}
-              placeholder="Enter your email"
+              placeholder={isFrench ? 'Entrez votre email' : 'Enter your email'}
               placeholderTextColor={colors.highlight}
               value={email}
               onChangeText={setEmail}
@@ -176,7 +219,9 @@ const LoginScreen = ({ navigation }: Props) => {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={[styles.label, { color: colors.muted }]}>Password</Text>
+            <Text style={[styles.label, { color: colors.muted }]}>
+              {isFrench ? 'Mot de passe' : 'Password'}
+            </Text>
             <TextInput
               style={[
                 styles.input,
@@ -186,7 +231,7 @@ const LoginScreen = ({ navigation }: Props) => {
                   borderColor: colors.border,
                 },
               ]}
-              placeholder="Enter your password"
+              placeholder={isFrench ? 'Entrez votre mot de passe' : 'Enter your password'}
               placeholderTextColor={colors.highlight}
               value={password}
               onChangeText={setPassword}
@@ -208,20 +253,26 @@ const LoginScreen = ({ navigation }: Props) => {
                 styles.buttonText,
                 { color: colors.primaryForeground },
               ]}>
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading
+                ? isFrench
+                  ? 'Connexion...'
+                  : 'Signing in...'
+                : isFrench
+                  ? 'Se connecter'
+                  : 'Sign In'}
             </Text>
           </TouchableOpacity>
 
           <View style={styles.footer}>
             <Text style={[styles.footerText, { color: colors.muted }]}>
-              Don't have an account?
+              {isFrench ? "Vous n'avez pas de compte ?" : "Don't have an account?"}
             </Text>
             <TouchableOpacity
               onPress={() => navigation.replace('Signup')}
               activeOpacity={0.7}>
               <Text style={[styles.footerLink, { color: colors.primary }]}>
                 {' '}
-                Sign Up
+                {isFrench ? "S'inscrire" : 'Sign Up'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -244,6 +295,7 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 40,
+    width: '100%',
   },
   logoContainer: {
     width: 72,
@@ -261,10 +313,30 @@ const styles = StyleSheet.create({
     fontSize: 28,
     ...DefaultStyles.fonts.semiBold,
     marginBottom: 8,
+    textAlign: 'center',
+    width: '100%',
   },
   subtitle: {
     fontSize: 15,
     ...DefaultStyles.fonts.regular,
+    textAlign: 'center',
+    alignSelf: 'stretch',
+    paddingHorizontal: 16,
+  },
+  langRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+    justifyContent: 'center',
+  },
+  langChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  langChipText: {
+    fontSize: 12,
+    ...DefaultStyles.fonts.semiBold,
   },
   form: {
     gap: 16,

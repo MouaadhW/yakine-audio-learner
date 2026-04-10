@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { ProgramType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole, optionalAuth } from '../middleware/auth';
+import {
+  buildSubjectWhereForUser,
+  canRequestAccessSubject,
+  SubjectAccessUser,
+} from '../lib/subjectAccess';
 
 const createSubjectSchema = z.object({
   nameEn: z.string().min(2),
@@ -36,51 +42,67 @@ subjectRouter.get('/', optionalAuth, async (req, res, next) => {
     const page = parseInt((req.query.page as string) || '1');
     const limit = parseInt((req.query.limit as string) || '50');
 
-    let scopeFilter: any = {}; // default: no filter (unauthenticated or admin)
+    let scopeFilter: Record<string, unknown> = {};
 
-    if ((req as any).auth) {
-      const auth = (req as any).auth;
-
-      if (auth.role === 'STUDENT') {
-        // Student: show only subjects matching their education profile
-        const student = await prisma.user.findUnique({
-          where: { id: auth.userId },
-          select: { educationLevel: true, grade: true, universityYear: true, stream: true },
-        });
-
-        if (student) {
-          if (student.educationLevel) {
-            scopeFilter.educationLevel = student.educationLevel;
-          }
-          if (student.grade != null) {
-            scopeFilter.grade = student.grade;
-          }
-          if (student.universityYear != null) {
-            scopeFilter.universityYear = student.universityYear;
-          }
-          if (student.stream) {
-            scopeFilter.stream = student.stream;
-          }
-        }
-      } else if (auth.role === 'TEACHER') {
-        // Teacher: show only subjects that match their scopes
-        const scopes = await prisma.teacherScope.findMany({
-          where: { teacherId: auth.userId },
-        });
-
-        if (scopes.length > 0) {
-          scopeFilter.OR = scopes.map(s => ({
-            educationLevel: s.educationLevel,
-            ...(s.grade != null && { grade: s.grade }),
-            ...(s.universityYear != null && { universityYear: s.universityYear }),
-            stream: s.stream,
-          }));
-        } else {
-          // Teacher has no scopes — show nothing
-          scopeFilter.id = '__none__';
-        }
+    const auth = req.auth;
+    if (!auth) {
+      scopeFilter = buildSubjectWhereForUser(null) as Record<string, unknown>;
+    } else if (auth.role === 'ADMIN') {
+      scopeFilter = {};
+    } else if (auth.role === 'STUDENT') {
+      const student = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: {
+          role: true,
+          subscriptionTier: true,
+          lawUniversity: true,
+          lawMajor: true,
+          lawAcademicLevel: true,
+          educationLevel: true,
+          grade: true,
+          universityYear: true,
+          stream: true,
+        },
+      });
+      if (student) {
+        scopeFilter = buildSubjectWhereForUser(student as SubjectAccessUser) as Record<
+          string,
+          unknown
+        >;
+      } else {
+        scopeFilter = { id: { in: [] as string[] } };
       }
-      // ADMIN: no filter, sees everything
+    } else if (auth.role === 'TEACHER') {
+      const teacherRow = await prisma.user.findUnique({
+        where: { id: auth.userId },
+        select: { lawUniversity: true },
+      });
+      const scopes = await prisma.teacherScope.findMany({
+        where: { teacherId: auth.userId },
+      });
+      const lawClause =
+        teacherRow?.lawUniversity != null
+          ? {
+              programType: ProgramType.LAW,
+              lawUniversity: teacherRow.lawUniversity,
+            }
+          : { programType: ProgramType.LAW };
+      if (scopes.length > 0) {
+        scopeFilter = {
+          OR: [
+            ...scopes.map(s => ({
+              programType: ProgramType.BAC,
+              educationLevel: s.educationLevel,
+              ...(s.grade != null && { grade: s.grade }),
+              ...(s.universityYear != null && { universityYear: s.universityYear }),
+              stream: s.stream,
+            })),
+            lawClause,
+          ],
+        };
+      } else {
+        scopeFilter = lawClause;
+      }
     }
 
     const [subjects, total] = await Promise.all([
@@ -113,6 +135,12 @@ subjectRouter.get('/', optionalAuth, async (req, res, next) => {
       educationLevel: s.educationLevel,
       grade: s.grade,
       universityYear: s.universityYear,
+      programType: s.programType,
+      contentTier: s.contentTier,
+      lawUniversity: s.lawUniversity,
+      lawAcademicLevel: s.lawAcademicLevel,
+      lawMajor: s.lawMajor,
+      semester: s.semester,
       chapterCount: s._count.chapters,
       // CMS Category-compatible fields (used by HomeScreen)
       name: s.nameEn,
@@ -132,7 +160,7 @@ subjectRouter.get('/', optionalAuth, async (req, res, next) => {
   }
 });
 
-subjectRouter.get('/:id', async (req, res, next) => {
+subjectRouter.get('/:id', optionalAuth, async (req, res, next) => {
   try {
     const subject = await prisma.subject.findUnique({
       where: { id: req.params.id },
@@ -146,6 +174,11 @@ subjectRouter.get('/:id', async (req, res, next) => {
 
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    const allowed = await canRequestAccessSubject(prisma, req.auth, subject);
+    if (!allowed) {
+      return res.status(403).json({ message: 'You do not have access to this subject' });
     }
 
     return res.json(subject);

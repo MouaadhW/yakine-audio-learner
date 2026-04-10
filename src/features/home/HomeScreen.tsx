@@ -21,11 +21,13 @@ import {
   BookOpenIcon,
   HeadphonesIcon,
   ClockIcon,
+  LockIcon,
 } from 'lucide-react-native';
 import type { PropsWithChildren } from 'react';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  Alert,
   Dimensions,
   FlatList,
   RefreshControl,
@@ -36,6 +38,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { selectAuthUser } from '@/features/auth/authSlice';
 import { selectTheme } from '../themeSlice';
 
 const screen = Dimensions.get('window');
@@ -89,6 +92,7 @@ const Heading = ({ title, seeAll }: HeadingProps) => {
 
 const HomeScreen = () => {
   const { colors } = useAppSelector(selectTheme);
+  const user = useAppSelector(selectAuthUser);
   const { t, i18n } = useTranslation();
   const isFr = i18n.language === 'fr';
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
@@ -132,6 +136,19 @@ const HomeScreen = () => {
 
   const isFetching = subjectsFetching || lessonsFetching;
 
+  const categoryChips = useMemo(() => (subjects ?? []).slice(0, 4), [subjects]);
+
+  const recentLessonsForHome = useMemo(() => {
+    const list = recentLessons ?? [];
+    if (
+      user?.role === 'STUDENT' &&
+      user.subscriptionTier !== 'PREMIUM'
+    ) {
+      return list.filter(l => !l.locked);
+    }
+    return list;
+  }, [recentLessons, user]);
+
   const handleRefresh = () => {
     refetchSubjects();
     refetchLessons();
@@ -163,33 +180,66 @@ const HomeScreen = () => {
     </TouchableOpacity>
   );
 
-  const renderLessonCard = ({ item }: { item: BACLesson }) => (
-    <TouchableOpacity
-      style={[
-        homeStyles.lessonCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
-      ]}
-      activeOpacity={0.7}
-      onPress={() => rootNavigation.navigate('AudioPlayer', { lesson: item })}>
-      <View style={[homeStyles.lessonIconCircle, { backgroundColor: colors.primary + '18' }]}>
-        <HeadphonesIcon size={20} color={colors.primary} />
-      </View>
-      <Text style={[homeStyles.lessonTitle, { color: colors.text }]} numberOfLines={2}>
-        {isFr ? item.titleFr : item.titleEn}
-      </Text>
-      <View style={homeStyles.lessonFooter}>
-        <ClockIcon size={12} color={colors.muted} />
-        <Text style={[homeStyles.lessonDuration, { color: colors.muted }]}>
-          {formatDuration(item.duration)}
+  const renderLessonCard = ({ item }: { item: BACLesson }) => {
+    const locked = !!item.locked;
+    return (
+      <TouchableOpacity
+        style={[
+          homeStyles.lessonCard,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: locked ? 0.92 : 1,
+          },
+        ]}
+        activeOpacity={0.7}
+        onPress={() => {
+          if (locked) {
+            Alert.alert(
+              isFr ? 'Contenu Premium' : 'Premium',
+              isFr
+                ? 'Cette lecon est reservee aux abonnes Premium.'
+                : 'This lesson is for Premium subscribers.',
+            );
+            return;
+          }
+          rootNavigation.navigate('AudioPlayer', { lesson: item });
+        }}>
+        <View
+          style={[
+            homeStyles.lessonIconCircle,
+            {
+              backgroundColor: locked ? colors.muted + '22' : colors.primary + '18',
+            },
+          ]}>
+          {locked ? (
+            <LockIcon size={20} color={colors.muted} />
+          ) : (
+            <HeadphonesIcon size={20} color={colors.primary} />
+          )}
+        </View>
+        <Text style={[homeStyles.lessonTitle, { color: colors.text }]} numberOfLines={2}>
+          {isFr ? item.titleFr : item.titleEn}
         </Text>
-      </View>
-      {item.teacherName ? (
-        <Text style={[homeStyles.lessonTeacher, { color: colors.muted }]} numberOfLines={1}>
-          🎙️ {item.teacherName}
-        </Text>
-      ) : null}
-    </TouchableOpacity>
-  );
+        {locked ? (
+          <View style={homeStyles.premiumPill}>
+            <Text style={homeStyles.premiumPillText}>Premium</Text>
+          </View>
+        ) : null}
+        <View style={homeStyles.lessonFooter}>
+          <ClockIcon size={12} color={colors.muted} />
+          <Text style={[homeStyles.lessonDuration, { color: colors.muted }]}>
+            {formatDuration(item.duration)}
+          </Text>
+        </View>
+        {item.teacherName ? (
+          <Text style={[homeStyles.lessonTeacher, { color: colors.muted }]} numberOfLines={1}>
+            🎙️ {item.teacherName}
+          </Text>
+        ) : null}
+      </TouchableOpacity>
+    );
+  };
 
   const listItemSeparator = () => <View style={{ width: 10 }} />;
 
@@ -284,7 +334,7 @@ const HomeScreen = () => {
           <Heading title={t('categories')} seeAll={() => rootNavigation.navigate('SubjectList')} />
           <Spacer orientation="vertical" spacing={12} />
           <View style={styles.categoryContainer}>
-            {(subjects ?? []).map(s => (
+            {categoryChips.map(s => (
               <Chip
                 key={s.id}
                 title={`${s.icon ?? '📚'} ${isFr ? s.nameFr : s.nameEn}`}
@@ -319,7 +369,7 @@ const HomeScreen = () => {
           />
           <Spacer orientation="vertical" spacing={12} />
           <FlatList
-            data={recentLessons ?? []}
+            data={recentLessonsForHome}
             renderItem={renderLessonCard}
             keyExtractor={item => item.id}
             horizontal
@@ -412,6 +462,14 @@ const homeStyles = StyleSheet.create({
     alignItems: 'center',
   },
   lessonTitle: { fontSize: 14, fontWeight: '600' },
+  premiumPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    backgroundColor: '#a855f728',
+  },
+  premiumPillText: { fontSize: 10, fontWeight: '700', color: '#a855f7', letterSpacing: 0.3 },
   lessonFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   lessonDuration: { fontSize: 12 },
   lessonTeacher: { fontSize: 11, marginTop: 2 },

@@ -18,7 +18,16 @@ const envSchema = z.object({
   AWS_REGION: z.string().default('auto'),
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
-  AWS_ENDPOINT: z.string().optional()
+  AWS_ENDPOINT: z.string().optional(),
+  ELEVENLABS_API_KEY: z.string().optional(),
+  ELEVENLABS_BASE_URL: z.string().default('https://api.elevenlabs.io'),
+  ELEVENLABS_MODEL_ID: z.string().default('eleven_multilingual_v2'),
+  ELEVENLABS_OUTPUT_FORMAT: z.string().default('mp3_44100_128'),
+  ELEVENLABS_VOICE_EN: z.string().optional(),
+  ELEVENLABS_VOICE_FR: z.string().optional(),
+  ELEVENLABS_VOICE_AR: z.string().optional(),
+  TTS_REQUEST_TIMEOUT_MS: z.coerce.number().default(45000),
+  TEACHER_COMPOSER_MAX_CHARS: z.coerce.number().default(12000)
 });
 
 export const env = envSchema.parse(process.env);

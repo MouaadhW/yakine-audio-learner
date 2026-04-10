@@ -2,6 +2,8 @@ import { Text } from '@/components/ui/Text';
 import { Avatar } from '@/components/ui/Avatar';
 import {
   Alert,
+  AppState,
+  type AppStateStatus,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,7 +20,9 @@ import { useTranslation } from 'react-i18next';
 import { logout, updateUser, selectAuthUser } from '../auth/authSlice';
 import { DefaultStyles } from '@/components/styles';
 import { makeApiRequest } from '@/lib/makeApiRequest';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import { fetchCurrentUser } from '@/lib/services/BacApi';
 import {
   UserIcon,
   MailIcon,
@@ -34,6 +38,13 @@ import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigations';
+import {
+  LAW_LEVELS,
+  LAW_MAJORS,
+  LAW_REGIONS,
+  LAW_UNIVERSITIES_BY_REGION,
+  type LawRegion,
+} from '../../../backend/src/constants/lawOnboarding';
 
 const ProfileScreen = () => {
   const dispatch = useAppDispatch();
@@ -45,6 +56,10 @@ const ProfileScreen = () => {
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? '');
   const [editEmail, setEditEmail] = useState(user?.email ?? '');
+  const [editLawRegion, setEditLawRegion] = useState<LawRegion | null>((user?.lawRegion as LawRegion) ?? null);
+  const [editLawUniversity, setEditLawUniversity] = useState(user?.lawUniversity ?? '');
+  const [editLawMajor, setEditLawMajor] = useState<'DROIT_PRIVE' | 'DROIT_PUBLIC' | null>(user?.lawMajor ?? null);
+  const [editLawAcademicLevel, setEditLawAcademicLevel] = useState<'L1' | 'L2' | 'L3' | null>(user?.lawAcademicLevel ?? null);
   const [saving, setSaving] = useState(false);
 
   const selectedLanguage = i18n.language.startsWith('fr') ? 'fr' : 'en';
@@ -68,9 +83,36 @@ const ProfileScreen = () => {
     }
   };
 
+  const refreshProfileFromServer = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const next = await fetchCurrentUser();
+      dispatch(updateUser(next));
+    } catch {
+      /* offline or expired session */
+    }
+  }, [user?.id, dispatch]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshProfileFromServer();
+    }, [refreshProfileFromServer]),
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (next: AppStateStatus) => {
+      if (next === 'active') void refreshProfileFromServer();
+    });
+    return () => sub.remove();
+  }, [refreshProfileFromServer]);
+
   const openEditModal = useCallback(() => {
     setEditName(user?.name ?? '');
     setEditEmail(user?.email ?? '');
+    setEditLawRegion((user?.lawRegion as LawRegion) ?? null);
+    setEditLawUniversity(user?.lawUniversity ?? '');
+    setEditLawMajor(user?.lawMajor ?? null);
+    setEditLawAcademicLevel(user?.lawAcademicLevel ?? null);
     setEditModalVisible(true);
   }, [user]);
 
@@ -86,6 +128,10 @@ const ProfileScreen = () => {
           body: JSON.stringify({
             name: editName.trim(),
             email: editEmail.trim(),
+            lawRegion: editLawRegion,
+            lawUniversity: editLawUniversity.trim() || undefined,
+            lawMajor: editLawMajor,
+            lawAcademicLevel: editLawAcademicLevel,
           }),
         },
       });
@@ -93,11 +139,17 @@ const ProfileScreen = () => {
         const updated = await resp.json();
         dispatch(
           updateUser({
+            ...user!,
             id: updated.id,
             name: updated.name,
             email: updated.email,
             role: updated.role,
+            subscriptionTier: updated.subscriptionTier,
             language: updated.language,
+            lawRegion: updated.lawRegion,
+            lawUniversity: updated.lawUniversity,
+            lawMajor: updated.lawMajor,
+            lawAcademicLevel: updated.lawAcademicLevel,
           }),
         );
         Toast.show({ type: 'info', text1: t('profileUpdated') });
@@ -111,7 +163,7 @@ const ProfileScreen = () => {
     } finally {
       setSaving(false);
     }
-  }, [editName, editEmail, dispatch, t]);
+  }, [user, editEmail, editLawAcademicLevel, editLawMajor, editLawRegion, editLawUniversity, editName, dispatch, t]);
 
   const handleLogout = useCallback(() => {
     Alert.alert(t('logout'), t('logoutConfirm'), [
@@ -125,6 +177,12 @@ const ProfileScreen = () => {
   }, [dispatch, t]);
 
   const roleBadge = user ? getRoleBadge(user.role) : getRoleBadge('STUDENT');
+  const majorLabel =
+    user?.lawMajor === 'DROIT_PRIVE'
+      ? (selectedLanguage === 'fr' ? 'Droit Prive' : 'Private Law')
+      : user?.lawMajor === 'DROIT_PUBLIC'
+        ? (selectedLanguage === 'fr' ? 'Droit Public' : 'Public Law')
+        : '-';
 
   return (
     <ScrollView
@@ -183,6 +241,33 @@ const ProfileScreen = () => {
                 {roleBadge.label}
               </Text>
             </View>
+            {user?.role === 'STUDENT' ? (
+              <View
+                style={[
+                  styles.tierBadge,
+                  {
+                    backgroundColor:
+                      user.subscriptionTier === 'PREMIUM'
+                        ? '#a855f722'
+                        : colors.border + '44',
+                    borderColor:
+                      user.subscriptionTier === 'PREMIUM' ? '#a855f755' : colors.border,
+                  },
+                ]}>
+                <Text
+                  style={[
+                    styles.tierBadgeText,
+                    {
+                      color:
+                        user.subscriptionTier === 'PREMIUM' ? '#a855f7' : colors.muted,
+                    },
+                  ]}>
+                  {user.subscriptionTier === 'PREMIUM'
+                    ? t('subscriptionTierPremium')
+                    : t('subscriptionTierFree')}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
@@ -199,6 +284,30 @@ const ProfileScreen = () => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {user?.role === 'TEACHER' && (!user.lawRegion || !user.lawUniversity) && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={openEditModal}
+          style={[
+            styles.teacherLawBanner,
+            { backgroundColor: '#f59e0b22', borderColor: '#f59e0b55' },
+          ]}>
+          <Text style={[styles.teacherLawBannerTitle, { color: colors.text }]}>
+            {selectedLanguage === 'fr'
+              ? 'Faculte de droit requise'
+              : 'Law faculty required'}
+          </Text>
+          <Text style={[styles.teacherLawBannerSub, { color: colors.muted }]}>
+            {selectedLanguage === 'fr'
+              ? 'Indiquez votre region et universite pour le contenu droit.'
+              : 'Set your law region and university to use law teaching features.'}
+          </Text>
+          <Text style={[styles.teacherLawBannerCta, { color: '#d97706' }]}>
+            {selectedLanguage === 'fr' ? 'Completer le profil' : 'Complete profile'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* ===== Preferences Section ===== */}
       <View style={styles.sectionContainer}>
@@ -371,6 +480,70 @@ const ProfileScreen = () => {
               </Text>
             </View>
           </View>
+
+          <View style={[styles.separator, { backgroundColor: colors.border }]} />
+
+          <View style={styles.infoRow}>
+            <View style={[styles.settingIcon, { backgroundColor: '#8b5cf618' }]}>
+              <UserIcon size={18} color="#8b5cf6" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+                {selectedLanguage === 'fr' ? 'Region' : 'Region'}
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {user?.lawRegion ?? '-'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.separator, { backgroundColor: colors.border }]} />
+
+          <View style={styles.infoRow}>
+            <View style={[styles.settingIcon, { backgroundColor: '#ec489918' }]}>
+              <UserIcon size={18} color="#ec4899" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+                {selectedLanguage === 'fr' ? 'Universite' : 'University'}
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {user?.lawUniversity ?? '-'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.separator, { backgroundColor: colors.border }]} />
+
+          <View style={styles.infoRow}>
+            <View style={[styles.settingIcon, { backgroundColor: '#f59e0b18' }]}>
+              <UserIcon size={18} color="#f59e0b" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+                {selectedLanguage === 'fr' ? 'Specialite' : 'Major'}
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {majorLabel}
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.separator, { backgroundColor: colors.border }]} />
+
+          <View style={styles.infoRow}>
+            <View style={[styles.settingIcon, { backgroundColor: '#06b6d418' }]}>
+              <UserIcon size={18} color="#06b6d4" />
+            </View>
+            <View style={styles.infoContent}>
+              <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>
+                {selectedLanguage === 'fr' ? "Niveau d'etudes" : 'Academic level'}
+              </Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {user?.lawAcademicLevel ?? '-'}
+              </Text>
+            </View>
+          </View>
         </View>
       </View>
 
@@ -506,6 +679,107 @@ const ProfileScreen = () => {
                   autoCapitalize="none"
                 />
               </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                  {selectedLanguage === 'fr' ? 'Region' : 'Region'}
+                </Text>
+                <View style={styles.chipWrap}>
+                  {LAW_REGIONS.map(region => (
+                    <TouchableOpacity
+                      key={region}
+                      style={[
+                        styles.chip,
+                        editLawRegion === region
+                          ? { backgroundColor: colors.primary }
+                          : { backgroundColor: colors.inputBackground, borderColor: colors.border, borderWidth: 1 },
+                      ]}
+                      onPress={() => {
+                        setEditLawRegion(region);
+                        setEditLawUniversity('');
+                      }}
+                      activeOpacity={0.7}>
+                      <Text style={[styles.chipText, { color: editLawRegion === region ? '#fff' : colors.text }]}>
+                        {region}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                  {selectedLanguage === 'fr' ? 'Universite' : 'University'}
+                </Text>
+                <View style={styles.chipWrap}>
+                  {(editLawRegion ? LAW_UNIVERSITIES_BY_REGION[editLawRegion] : []).map(university => (
+                    <TouchableOpacity
+                      key={university}
+                      style={[
+                        styles.chip,
+                        editLawUniversity === university
+                          ? { backgroundColor: colors.primary }
+                          : { backgroundColor: colors.inputBackground, borderColor: colors.border, borderWidth: 1 },
+                      ]}
+                      onPress={() => setEditLawUniversity(university)}
+                      activeOpacity={0.7}>
+                      <Text style={[styles.chipText, { color: editLawUniversity === university ? '#fff' : colors.text }]}>
+                        {university}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                  {selectedLanguage === 'fr' ? 'Specialite' : 'Major'}
+                </Text>
+                <View style={styles.chipWrap}>
+                  {LAW_MAJORS.map(major => (
+                    <TouchableOpacity
+                      key={major}
+                      style={[
+                        styles.chip,
+                        editLawMajor === major
+                          ? { backgroundColor: colors.primary }
+                          : { backgroundColor: colors.inputBackground, borderColor: colors.border, borderWidth: 1 },
+                      ]}
+                      onPress={() => setEditLawMajor(major)}
+                      activeOpacity={0.7}>
+                      <Text style={[styles.chipText, { color: editLawMajor === major ? '#fff' : colors.text }]}>
+                        {major === 'DROIT_PRIVE'
+                          ? (selectedLanguage === 'fr' ? 'Droit Prive' : 'Private Law')
+                          : (selectedLanguage === 'fr' ? 'Droit Public' : 'Public Law')}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={[styles.inputLabel, { color: colors.textSecondary }]}>
+                  {selectedLanguage === 'fr' ? "Niveau d'etudes" : 'Academic level'}
+                </Text>
+                <View style={styles.chipWrap}>
+                  {LAW_LEVELS.map(level => (
+                    <TouchableOpacity
+                      key={level}
+                      style={[
+                        styles.chip,
+                        editLawAcademicLevel === level
+                          ? { backgroundColor: colors.primary }
+                          : { backgroundColor: colors.inputBackground, borderColor: colors.border, borderWidth: 1 },
+                      ]}
+                      onPress={() => setEditLawAcademicLevel(level)}
+                      activeOpacity={0.7}>
+                      <Text style={[styles.chipText, { color: editLawAcademicLevel === level ? '#fff' : colors.text }]}>
+                        {level}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </View>
 
             <View style={styles.modalActions}>
@@ -603,6 +877,18 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
+  tierBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  tierBadgeText: {
+    fontSize: 12,
+    ...DefaultStyles.fonts.semiBold,
+  },
   editProfileButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -616,6 +902,27 @@ const styles = StyleSheet.create({
   editProfileText: {
     fontSize: 14,
     ...DefaultStyles.fonts.medium,
+  },
+  teacherLawBanner: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  teacherLawBannerTitle: {
+    fontSize: 15,
+    ...DefaultStyles.fonts.semiBold,
+  },
+  teacherLawBannerSub: {
+    fontSize: 13,
+    marginTop: 6,
+    lineHeight: 18,
+  },
+  teacherLawBannerCta: {
+    fontSize: 13,
+    ...DefaultStyles.fonts.semiBold,
+    marginTop: 10,
   },
 
   /* Section */
@@ -671,6 +978,11 @@ const styles = StyleSheet.create({
   /* Chips */
   chipRow: {
     flexDirection: 'row',
+    gap: 6,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 6,
   },
   chip: {

@@ -79,4 +79,8 @@ export default {
   nowPlaying: 'Now Playing',
   minutesListened: 'min listened',
   loadingSession: 'Loading your session...',
+  subscriptionTierFree: 'Free tier',
+  subscriptionTierPremium: 'Premium tier',
+  semesterN: 'Semester {{n}}',
+  subjectsOtherSemester: 'Other subjects',
 };

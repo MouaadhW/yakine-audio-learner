@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { env } from '../config/env';
 
 export interface JwtPayload {
@@ -9,7 +9,7 @@ export interface JwtPayload {
 }
 
 export function generateSessionId(): string {
-  return uuidv4();
+  return randomUUID();
 }
 
 export function signAccessToken(payload: JwtPayload): string {

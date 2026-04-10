@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth, requireRole, optionalAuth } from '../middleware/auth';
+import { canRequestAccessSubject, resolveAllowedSubjectIds } from '../lib/subjectAccess';
+import {
+  isLessonLockedForViewer,
+  loadLessonListViewer,
+} from '../lib/lessonAccess';
+import { LessonStatus } from '@prisma/client';
 
 export const chapterRouter = Router();
 
@@ -19,14 +25,35 @@ const updateChapterSchema = z.object({
 });
 
 // GET /api/chapters?subjectId=xxx
-chapterRouter.get('/', async (req, res, next) => {
+chapterRouter.get('/', optionalAuth, async (req, res, next) => {
   try {
     const subjectId = req.query.subjectId as string | undefined;
 
+    const allowedIds = await resolveAllowedSubjectIds(prisma, req.auth);
+
+    if (subjectId) {
+      const subject = await prisma.subject.findUnique({ where: { id: subjectId } });
+      if (!subject) {
+        return res.status(404).json({ message: 'Subject not found' });
+      }
+      const ok = await canRequestAccessSubject(prisma, req.auth, subject);
+      if (!ok) {
+        return res.status(403).json({ message: 'You do not have access to this subject' });
+      }
+    }
+
+    const listViewer = await loadLessonListViewer(prisma, req.auth);
+
     const chapters = await prisma.chapter.findMany({
-      where: subjectId ? { subjectId } : undefined,
+      where: subjectId
+        ? { subjectId }
+        : allowedIds.length > 0
+          ? { subjectId: { in: allowedIds } }
+          : { subjectId: { in: [] as string[] } },
       include: {
         lessons: {
+          where: { status: LessonStatus.PUBLISHED },
+          orderBy: { sortOrder: 'asc' },
           include: {
             teacher: { select: { id: true, name: true } },
           },
@@ -36,13 +63,16 @@ chapterRouter.get('/', async (req, res, next) => {
       orderBy: { sortOrder: 'asc' },
     });
 
-    // Enrich lessons with teacherName
     const enriched = chapters.map(ch => ({
       ...ch,
-      lessons: ch.lessons.map(l => ({
-        ...l,
-        teacherName: l.teacher?.name || 'Unknown Teacher',
-      })),
+      lessons: ch.lessons.map(l => {
+        const { teacher, ...rest } = l;
+        return {
+          ...rest,
+          teacherName: teacher?.name || 'Unknown Teacher',
+          locked: isLessonLockedForViewer(listViewer, l.audience),
+        };
+      }),
     }));
 
     return res.json(enriched);

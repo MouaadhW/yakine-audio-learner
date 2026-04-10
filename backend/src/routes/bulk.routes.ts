@@ -146,6 +146,7 @@ bulkRouter.post('/import', async (req, res, next) => {
                   chapterId: chapter.id,
                   teacherId: req.auth!.userId,
                   status: 'PUBLISHED',
+                  audience: (lessonData as { audience?: 'FREE' | 'PREMIUM' }).audience ?? 'FREE',
                 },
               });
               stats.lessons++;

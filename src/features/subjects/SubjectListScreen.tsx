@@ -19,13 +19,12 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PencilIcon, Trash2Icon } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Alert,
-  FlatList,
-  ListRenderItemInfo,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -129,6 +128,35 @@ const SubjectListScreen = () => {
     placeholderData: fallbackSubjects,
   });
 
+  const subjectSections = useMemo(() => {
+    const list = subjects ?? fallbackSubjects;
+    const semesterNums = [
+      ...new Set(
+        list.map(s => s.semester).filter((x): x is number => typeof x === 'number' && !Number.isNaN(x)),
+      ),
+    ].sort((a, b) => a - b);
+    const sections: { key: string; title: string; data: BACSubject[] }[] = [];
+    for (const n of semesterNums) {
+      const data = list.filter(s => s.semester === n);
+      if (data.length) {
+        sections.push({
+          key: `sem-${n}`,
+          title: t('semesterN', { n }),
+          data,
+        });
+      }
+    }
+    const rest = list.filter(s => s.semester == null || typeof s.semester !== 'number');
+    if (rest.length) {
+      sections.push({
+        key: 'no-semester',
+        title: t('subjectsOtherSemester'),
+        data: rest,
+      });
+    }
+    return sections;
+  }, [subjects, t]);
+
   const openAdd = useCallback(() => {
     setEditingSubject(null);
     setFormValues({ icon: '📚', color: '#6C63FF', stream: 'SCIENTIFIC' });
@@ -216,20 +244,8 @@ const SubjectListScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <FlatList
-        data={subjects ?? fallbackSubjects}
-        keyExtractor={item => item.id}
-        renderItem={({ item }: ListRenderItemInfo<BACSubject>) => (
-          <SubjectCard
-            item={item}
-            isAdmin={isAdmin}
-            onEdit={openEdit}
-            onDelete={handleDelete}
-          />
-        )}
-        numColumns={2}
-        contentContainerStyle={[styles.list]}
-        columnWrapperStyle={styles.row}
+      <ScrollView
+        contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
             refreshing={isFetching}
@@ -237,8 +253,25 @@ const SubjectListScreen = () => {
             colors={[colors.primary]}
             tintColor={colors.primary}
           />
-        }
-      />
+        }>
+        {subjectSections.map(section => (
+          <View key={section.key} style={styles.sectionBlock}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{section.title}</Text>
+            <View style={styles.grid}>
+              {section.data.map(item => (
+                <View key={item.id} style={styles.gridCell}>
+                  <SubjectCard
+                    item={item}
+                    isAdmin={isAdmin}
+                    onEdit={openEdit}
+                    onDelete={handleDelete}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+        ))}
+      </ScrollView>
       {isAdmin && <FAB onPress={openAdd} />}
       <AdminFormModal
         visible={showModal}
@@ -266,10 +299,24 @@ const SubjectListScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  list: { padding: 16, flexGrow: 1 },
-  row: { gap: 12, marginBottom: 12 },
+  list: { padding: 16, flexGrow: 1, paddingBottom: 32 },
+  sectionBlock: { marginBottom: 20 },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    rowGap: 12,
+  },
+  gridCell: {
+    width: '48%',
+  },
   card: {
-    flex: 1,
+    width: '100%',
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,

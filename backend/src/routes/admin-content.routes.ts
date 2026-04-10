@@ -50,6 +50,7 @@ adminContentRouter.get(
         duration: l.duration,
         sortOrder: l.sortOrder,
         status: l.status,
+        audience: l.audience,
         createdAt: l.createdAt,
         teacherName: l.teacher?.name ?? 'Unknown',
         chapter: l.chapter

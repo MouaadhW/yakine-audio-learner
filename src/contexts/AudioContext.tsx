@@ -103,6 +103,7 @@ export const AudioProvider = ({
   const durationRef = useRef(0);
   const pendingSeekRef = useRef<number | null>(null);
   const lastLessonIdRef = useRef<string | null>(null);
+  const lastSourceRef = useRef<string | null>(null);
   const shouldAutoPlayRef = useRef(false);
 
   // The audio source derived from the current lesson stored in Redux
@@ -128,8 +129,16 @@ export const AudioProvider = ({
 
   // ── Detect new lesson → trigger loading & auto-play ────────────
   useEffect(() => {
-    if (currentLesson && currentLesson.id !== lastLessonIdRef.current) {
+    const currentSource =
+      currentLesson?.downloadedPath ?? currentLesson?.audioUrl ?? null;
+
+    if (
+      currentLesson &&
+      (currentLesson.id !== lastLessonIdRef.current ||
+        currentSource !== lastSourceRef.current)
+    ) {
       lastLessonIdRef.current = currentLesson.id;
+      lastSourceRef.current = currentSource;
       setIsLoading(true);
       shouldAutoPlayRef.current = true;
       dispatch(setIsReady(false));
@@ -139,6 +148,7 @@ export const AudioProvider = ({
       }).catch(console.error);
     } else if (!currentLesson) {
       lastLessonIdRef.current = null;
+      lastSourceRef.current = null;
       setIsLoading(false);
       setPosition(0);
       setDuration(0);
@@ -307,6 +317,7 @@ export const AudioProvider = ({
     player.pause();
     dispatch(clearPlayer());
     lastLessonIdRef.current = null;
+    lastSourceRef.current = null;
   }, [currentLesson, player, dispatch]);
 
   // ── Memoised context value ─────────────────────────────────────

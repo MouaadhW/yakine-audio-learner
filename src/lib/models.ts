@@ -25,6 +25,11 @@ export interface BACSubject {
   color?: string;
   chapterCount?: number;
   chapters?: BACChapter[];
+  programType?: 'BAC' | 'LAW';
+  contentTier?: 'FREE_GLOBAL' | 'PREMIUM_SCOPED';
+  lawUniversity?: string | null;
+  /** 1 = semester one (S1), 2 = semester two (S2); law subjects may use 1–6. */
+  semester?: number | null;
 }
 
 export interface BACChapter {
@@ -42,8 +47,15 @@ export interface BACLesson {
   titleEn: string;
   titleFr: string;
   audioUrl: string;
+  audioUrlEn?: string;
+  audioUrlFr?: string;
+  audioUrlAr?: string;
   scriptEn: string;
   scriptFr: string;
+  scriptAr?: string;
+  transcriptEn?: string;
+  transcriptFr?: string;
+  transcriptAr?: string;
   duration: number;
   teacherName: string;
   teacherAvatar?: string;
@@ -55,6 +67,16 @@ export interface BACLesson {
   downloadedPath?: string;
   downloadStatus?: 'not_downloaded' | 'downloading' | 'downloaded' | 'failed';
   downloadProgress?: number;
+  /** FREE = all eligible students; PREMIUM = requires paid subscription */
+  audience?: 'FREE' | 'PREMIUM';
+  /** Server: true when the current user cannot play this lesson (e.g. PREMIUM lesson, FREE student). */
+  locked?: boolean;
+  defaultAudioLanguage?: 'EN' | 'FR' | 'AR';
+  audioSourceType?: 'LEGACY' | 'MANUAL_UPLOAD' | 'MANUAL_RECORDING' | 'AI_TTS';
+  isTeacherComposer?: boolean;
+  composerAutoPublish?: boolean;
+  generationRequestedAt?: string;
+  generatedAt?: string;
 }
 
 export interface AudioPlayerState {

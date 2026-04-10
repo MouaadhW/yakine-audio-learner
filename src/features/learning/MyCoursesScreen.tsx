@@ -1,6 +1,7 @@
 import { Text } from '@/components/ui/Text';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -10,7 +11,13 @@ import {
 import { useAppSelector } from '@/lib/hooks';
 import { useTranslation } from 'react-i18next';
 import { selectTheme } from '../themeSlice';
-import { BookOpenIcon, CheckCircleIcon, CircleCheckBigIcon, PlayCircleIcon } from 'lucide-react-native';
+import {
+  BookOpenIcon,
+  CheckCircleIcon,
+  CircleCheckBigIcon,
+  LockIcon,
+  PlayCircleIcon,
+} from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { getProgress } from '@/lib/services/BacApi';
 import { ProgressEntry } from '@/lib/models';
@@ -47,6 +54,15 @@ const MyCoursesScreen = () => {
   });
 
   const handleResume = (item: ProgressEntry) => {
+    if (item.lesson.locked) {
+      Alert.alert(
+        isFr ? 'Contenu Premium' : 'Premium',
+        isFr
+          ? 'Cette lecon est reservee aux abonnes Premium.'
+          : 'This lesson is for Premium subscribers.',
+      );
+      return;
+    }
     const enriched = enrichLessonWithDownload(item.lesson);
     navigation.navigate('AudioPlayer', { lesson: enriched });
   };
@@ -57,6 +73,7 @@ const MyCoursesScreen = () => {
       item.lesson.duration > 0
         ? Math.min((item.position / item.lesson.duration) * 100, 100)
         : 0;
+    const locked = !!item.lesson.locked;
 
     return (
       <TouchableOpacity
@@ -71,12 +88,16 @@ const MyCoursesScreen = () => {
             style={[
               styles.playIcon,
               {
-                backgroundColor: item.completed
-                  ? colors.success + '20'
-                  : colors.primary + '20',
+                backgroundColor: locked
+                  ? colors.muted + '20'
+                  : item.completed
+                    ? colors.success + '20'
+                    : colors.primary + '20',
               },
             ]}>
-            {item.completed ? (
+            {locked ? (
+              <LockIcon size={24} color={colors.muted} />
+            ) : item.completed ? (
               <CircleCheckBigIcon size={24} color={colors.success} />
             ) : (
               <PlayCircleIcon size={24} color={colors.primary} />
@@ -89,6 +110,9 @@ const MyCoursesScreen = () => {
               numberOfLines={2}>
               {title}
             </Text>
+            {locked ? (
+              <Text style={[styles.premiumRowLabel, { color: '#a855f7' }]}>Premium</Text>
+            ) : null}
             <Text style={[styles.cardMeta, { color: colors.muted }]}>
               🎙️ {item.lesson.teacherName}
             </Text>
@@ -238,6 +262,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  premiumRowLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   cardMeta: {
     fontSize: 12,

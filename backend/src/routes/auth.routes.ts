@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { signAccessToken, signRefreshToken, verifyRefreshToken, generateSessionId } from '../lib/jwt';
 import { requireAuth } from '../middleware/auth';
+import { LAW_LEVELS, LAW_MAJORS, LAW_REGIONS, LAW_UNIVERSITIES_BY_REGION } from '../constants/lawOnboarding';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -37,6 +38,19 @@ const registerSchema = z.object({
   grade: z.number().int().optional(),
   universityYear: z.number().int().optional(),
   stream: z.enum(['SCIENTIFIC', 'LITERARY', 'ECONOMIC', 'TECHNICAL']).optional(),
+  lawRegion: z.enum(LAW_REGIONS),
+  lawUniversity: z.string().min(2),
+  lawMajor: z.enum(LAW_MAJORS),
+  lawAcademicLevel: z.enum(LAW_LEVELS),
+}).superRefine((input, ctx) => {
+  const allowedUniversities = LAW_UNIVERSITIES_BY_REGION[input.lawRegion];
+  if (!allowedUniversities.includes(input.lawUniversity)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['lawUniversity'],
+      message: 'University is not valid for the selected region',
+    });
+  }
 });
 
 const loginSchema = z.object({
@@ -51,7 +65,30 @@ const refreshSchema = z.object({
 const updateProfileSchema = z.object({
   name: z.string().min(2).optional(),
   email: z.string().email().optional(),
-  language: z.enum(['fr', 'en']).optional()
+  language: z.enum(['fr', 'en']).optional(),
+  lawRegion: z.enum(LAW_REGIONS).optional(),
+  lawUniversity: z.string().min(2).optional(),
+  lawMajor: z.enum(LAW_MAJORS).optional(),
+  lawAcademicLevel: z.enum(LAW_LEVELS).optional(),
+}).superRefine((input, ctx) => {
+  if (input.lawUniversity && !input.lawRegion) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['lawRegion'],
+      message: 'lawRegion is required when lawUniversity is provided',
+    });
+    return;
+  }
+  if (input.lawRegion && input.lawUniversity) {
+    const allowedUniversities = LAW_UNIVERSITIES_BY_REGION[input.lawRegion];
+    if (!allowedUniversities.includes(input.lawUniversity)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['lawUniversity'],
+        message: 'University is not valid for the selected region',
+      });
+    }
+  }
 });
 
 /** Compute the refresh token expiry date based on env config */
@@ -86,12 +123,17 @@ authRouter.post('/register', registerLimiter, async (req, res, next) => {
         name: input.name,
         password,
         role: 'STUDENT',
+        subscriptionTier: 'FREE',
         language: input.language,
         currentSessionId: sessionId,
         educationLevel: input.educationLevel,
         grade: input.grade,
         universityYear: input.universityYear,
         stream: input.stream,
+        lawRegion: input.lawRegion,
+        lawUniversity: input.lawUniversity,
+        lawMajor: input.lawMajor,
+        lawAcademicLevel: input.lawAcademicLevel,
       }
     });
 
@@ -116,11 +158,16 @@ authRouter.post('/register', registerLimiter, async (req, res, next) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        subscriptionTier: user.subscriptionTier,
         language: user.language,
         educationLevel: user.educationLevel,
         grade: user.grade,
         universityYear: user.universityYear,
         stream: user.stream,
+        lawRegion: user.lawRegion,
+        lawUniversity: user.lawUniversity,
+        lawMajor: user.lawMajor,
+        lawAcademicLevel: user.lawAcademicLevel,
       }
     });
   } catch (error) {
@@ -183,11 +230,16 @@ authRouter.post('/login', authLimiter, async (req, res, next) => {
         email: user.email,
         name: user.name,
         role: user.role,
+        subscriptionTier: user.subscriptionTier,
         language: user.language,
         educationLevel: user.educationLevel,
         grade: user.grade,
         universityYear: user.universityYear,
         stream: user.stream,
+        lawRegion: user.lawRegion,
+        lawUniversity: user.lawUniversity,
+        lawMajor: user.lawMajor,
+        lawAcademicLevel: user.lawAcademicLevel,
       }
     });
   } catch (error) {
@@ -204,11 +256,16 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
         email: true,
         name: true,
         role: true,
+        subscriptionTier: true,
         language: true,
         educationLevel: true,
         grade: true,
         universityYear: true,
         stream: true,
+        lawRegion: true,
+        lawUniversity: true,
+        lawMajor: true,
+        lawAcademicLevel: true,
         createdAt: true
       }
     });
@@ -241,15 +298,24 @@ authRouter.put('/profile', requireAuth, async (req, res, next) => {
         ...(input.name !== undefined && { name: input.name }),
         ...(input.email !== undefined && { email: input.email }),
         ...(input.language !== undefined && { language: input.language }),
+        ...(input.lawRegion !== undefined && { lawRegion: input.lawRegion }),
+        ...(input.lawUniversity !== undefined && { lawUniversity: input.lawUniversity }),
+        ...(input.lawMajor !== undefined && { lawMajor: input.lawMajor }),
+        ...(input.lawAcademicLevel !== undefined && { lawAcademicLevel: input.lawAcademicLevel }),
       },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
+        subscriptionTier: true,
         language: true,
-        createdAt: true
-      }
+        lawRegion: true,
+        lawUniversity: true,
+        lawMajor: true,
+        lawAcademicLevel: true,
+        createdAt: true,
+      },
     });
 
     return res.json(user);
