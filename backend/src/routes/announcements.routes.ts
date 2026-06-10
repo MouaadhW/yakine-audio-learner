@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth, requireRole, optionalAuth } from '../middleware/auth';
 
 export const announcementsRouter = Router();
 
@@ -16,14 +16,16 @@ const createAnnouncementSchema = z.object({
 
 const updateAnnouncementSchema = createAnnouncementSchema.partial();
 
-// GET /api/announcements — public, returns active announcements
-announcementsRouter.get('/', async (req, res, next) => {
+// GET /api/announcements — public for active; ?all=true requires ADMIN auth
+announcementsRouter.get('/', optionalAuth, async (req, res, next) => {
   try {
     const now = new Date();
     const adminView = req.query.all === 'true';
 
-    // Admin wants to see all (needs auth checked by caller)
     if (adminView) {
+      if (!req.auth || req.auth.role !== 'ADMIN') {
+        return res.status(403).json({ message: 'Forbidden' });
+      }
       const announcements = await prisma.announcement.findMany({
         orderBy: { createdAt: 'desc' },
       });

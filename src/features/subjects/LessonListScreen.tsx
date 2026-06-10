@@ -5,6 +5,9 @@ import { FAB } from '@/components/ui/FAB';
 import { AdminFormModal, FormField } from '@/components/ui/AdminFormModal';
 import { selectTheme } from '@/features/themeSlice';
 import { selectAuthUser } from '@/features/auth/authSlice';
+import { selectCurrentLesson } from '@/features/audioPlayerSlice';
+import MiniPlayer from '@/components/ui/MiniPlayer';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppSelector } from '@/lib/hooks';
 import { BACLesson } from '@/lib/models';
 import { downloadLessonAudio, isDownloadAvailable } from '@/lib/audio/downloadService';
@@ -70,6 +73,8 @@ const LessonListScreen = ({ route, navigation }: Props) => {
   const { chapterId } = route.params;
   const { colors } = useAppSelector(selectTheme);
   const user = useAppSelector(selectAuthUser);
+  const currentLesson = useAppSelector(selectCurrentLesson);
+  const insets = useSafeAreaInsets();
   const { i18n, t } = useTranslation();
   const isFr = i18n.language === 'fr';
   const queryClient = useQueryClient();
@@ -188,7 +193,8 @@ const LessonListScreen = ({ route, navigation }: Props) => {
       const file = result.assets[0];
       setUploading(true);
       const uploadResult = await uploadAudioFile(file.uri, file.name ?? 'audio.mp3');
-      setFormValues(prev => ({ ...prev, audioUrl: uploadResult.publicUrl }));
+      // Store the storage path; the backend signs it into a URL at serve time.
+      setFormValues(prev => ({ ...prev, audioUrl: uploadResult.path }));
       Alert.alert('Upload Complete', 'Audio file uploaded successfully');
     } catch (e: any) {
       Alert.alert('Upload Failed', e.message);
@@ -421,12 +427,18 @@ const LessonListScreen = ({ route, navigation }: Props) => {
         </TouchableOpacity>
       )}
       <FlatList
+        style={{ flex: 1 }}
         data={lessons}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={{ padding: 16, paddingTop: canAdd ? 8 : 16 }}
         ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       />
+      {currentLesson && (
+        <View style={{ paddingBottom: insets.bottom, backgroundColor: colors.cardElevated }}>
+          <MiniPlayer />
+        </View>
+      )}
       {canAdd && <FAB onPress={openAdd} />}
       <AdminFormModal
         visible={showModal}

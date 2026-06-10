@@ -54,6 +54,7 @@ const ProfileScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [editModalVisible, setEditModalVisible] = useState(false);
+  const [sendingVerification, setSendingVerification] = useState(false);
   const [editName, setEditName] = useState(user?.name ?? '');
   const [editEmail, setEditEmail] = useState(user?.email ?? '');
   const [editLawRegion, setEditLawRegion] = useState<LawRegion | null>((user?.lawRegion as LawRegion) ?? null);
@@ -175,6 +176,25 @@ const ProfileScreen = () => {
       },
     ]);
   }, [dispatch, t]);
+
+  const handleSendVerification = useCallback(async () => {
+    setSendingVerification(true);
+    try {
+      const resp = await makeApiRequest({
+        url: '/api/auth/send-verification',
+        options: { method: 'POST' },
+      });
+      if (resp.ok) {
+        Toast.show({ type: 'info', text1: selectedLanguage === 'fr' ? 'Email envoyé' : 'Email sent', text2: selectedLanguage === 'fr' ? 'Vérifiez votre boite email.' : 'Check your inbox.' });
+      } else {
+        Toast.show({ type: 'error', text1: selectedLanguage === 'fr' ? 'Erreur' : 'Error', text2: selectedLanguage === 'fr' ? 'Impossible d\'envoyer l\'email.' : 'Could not send email.' });
+      }
+    } catch {
+      Toast.show({ type: 'error', text1: 'Error', text2: selectedLanguage === 'fr' ? 'Impossible de se connecter.' : 'Unable to connect.' });
+    } finally {
+      setSendingVerification(false);
+    }
+  }, [selectedLanguage]);
 
   const roleBadge = user ? getRoleBadge(user.role) : getRoleBadge('STUDENT');
   const majorLabel =
@@ -307,6 +327,32 @@ const ProfileScreen = () => {
             {selectedLanguage === 'fr' ? 'Completer le profil' : 'Complete profile'}
           </Text>
         </TouchableOpacity>
+      )}
+
+      {user && user.emailVerified === false && (
+        <View style={[styles.verifyBanner, { backgroundColor: '#f59e0b14', borderColor: '#f59e0b44' }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.verifyBannerTitle, { color: colors.text }]}>
+              {selectedLanguage === 'fr' ? 'Email non vérifié' : 'Email not verified'}
+            </Text>
+            <Text style={[styles.verifyBannerSub, { color: colors.muted }]}>
+              {selectedLanguage === 'fr'
+                ? 'Vérifiez votre email pour sécuriser votre compte.'
+                : 'Verify your email to secure your account.'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.verifyBannerButton, { backgroundColor: '#f59e0b', opacity: sendingVerification ? 0.6 : 1 }]}
+            onPress={() => void handleSendVerification()}
+            disabled={sendingVerification}
+            activeOpacity={0.8}>
+            <Text style={styles.verifyBannerButtonText}>
+              {sendingVerification
+                ? '...'
+                : (selectedLanguage === 'fr' ? 'Envoyer' : 'Send')}
+            </Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* ===== Preferences Section ===== */}
@@ -923,6 +969,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     ...DefaultStyles.fonts.semiBold,
     marginTop: 10,
+  },
+  verifyBanner: {
+    marginHorizontal: 20,
+    marginTop: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  verifyBannerTitle: {
+    fontSize: 14,
+    ...DefaultStyles.fonts.semiBold,
+  },
+  verifyBannerSub: {
+    fontSize: 12,
+    marginTop: 2,
+    lineHeight: 16,
+  },
+  verifyBannerButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  verifyBannerButtonText: {
+    fontSize: 13,
+    ...DefaultStyles.fonts.semiBold,
+    color: '#fff',
   },
 
   /* Section */

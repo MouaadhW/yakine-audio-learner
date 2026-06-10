@@ -3,6 +3,8 @@ import { BACLesson } from './lib/models';
 export type RootStackParamList = {
   Login: undefined;
   Signup: undefined;
+  ForgotPassword: undefined;
+  ResetPassword: { token: string };
   MainTabs: undefined;
   BlogDetail: { slug: string };
   CourseDetail: { slug: string };

@@ -32,7 +32,7 @@ statsRouter.get('/', async (req, res, next) => {
       prisma.subject.count(),
       prisma.chapter.count(),
       prisma.progress.count({
-        where: { lesson: { createdAt: { gte: todayStart } } },
+        where: { updatedAt: { gte: todayStart } },
       }),
       prisma.lesson.count({ where: { status: 'PENDING_REVIEW' } }),
       prisma.subject.findMany({

@@ -17,6 +17,7 @@ export interface AuthUser {
   lawUniversity?: string;
   lawMajor?: 'DROIT_PRIVE' | 'DROIT_PUBLIC';
   lawAcademicLevel?: 'L1' | 'L2' | 'L3';
+  emailVerified?: boolean;
 }
 
 interface AuthState {

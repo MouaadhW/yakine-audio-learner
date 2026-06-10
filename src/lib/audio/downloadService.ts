@@ -23,14 +23,16 @@ const isExpoGo = (): boolean => {
  * instantiation crashes at load-time), so we defer the require AND guard
  * against the Expo Go runtime.
  */
-const getRNFS = (): typeof import('react-native-fs').default | null => {
+type RNFSModule = typeof import('react-native-fs');
+
+const getRNFS = (): RNFSModule | null => {
   if (isExpoGo()) {
     return null;
   }
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require('react-native-fs');
+    const mod = require('react-native-fs') as { default?: RNFSModule } & RNFSModule;
     return mod.default ?? mod ?? null;
   } catch {
     return null;
@@ -86,7 +88,7 @@ export const downloadLessonAudio = (
       toFile,
       discretionary: true,
       progressDivider: 1,
-      progress: ({ bytesWritten, contentLength }) => {
+      progress: ({ bytesWritten, contentLength }: { bytesWritten: number; contentLength: number }) => {
         if (contentLength > 0 && bytesWritten >= 0) {
           onProgress?.(Math.min(1, bytesWritten / contentLength));
         }

@@ -12,24 +12,6 @@ const patches = [
   {
     file: path.resolve(
       __dirname,
-      '../node_modules/react-native-track-player/lib/src/trackPlayer.js',
-    ),
-    find: "? new NativeEventEmitter(TrackPlayer)",
-    replace:
-      "? (TrackPlayer != null ? new NativeEventEmitter(TrackPlayer) : DeviceEventEmitter)",
-  },
-  {
-    file: path.resolve(
-      __dirname,
-      '../node_modules/react-native-track-player/src/trackPlayer.ts',
-    ),
-    find: "? new NativeEventEmitter(TrackPlayer)",
-    replace:
-      "? (TrackPlayer != null ? new NativeEventEmitter(TrackPlayer) : DeviceEventEmitter)",
-  },
-  {
-    file: path.resolve(
-      __dirname,
       '../node_modules/react-native-fs/FS.common.js',
     ),
     find: "var RNFS_NativeEventEmitter = new NativeEventEmitter(RNFSManager);",
