@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { requireAuth, requireRole } from '../middleware/auth';
+import { requireAuth, requireRole, invalidateSessionCache } from '../middleware/auth';
 import {
   LAW_LEVELS,
   LAW_MAJORS,
@@ -149,12 +149,13 @@ adminUsersRouter.put('/:id', async (req, res, next) => {
       },
     });
 
-    // When banning, revoke all refresh tokens
+    // When banning, revoke all refresh tokens and evict session cache immediately
     if (input.banned) {
       await prisma.refreshToken.updateMany({
         where: { userId: req.params.id, revokedAt: null },
         data: { revokedAt: new Date() }
       });
+      invalidateSessionCache(req.params.id);
     }
 
     return res.json(user);

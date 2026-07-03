@@ -64,6 +64,17 @@ bulkRouter.get('/export', async (req, res, next) => {
 });
 
 // POST /api/admin/bulk/import — import subjects, chapters, lessons from JSON
+const lessonImportSchema = z.object({
+  titleEn: z.string(),
+  titleFr: z.string(),
+  audioUrl: z.string().url(),
+  scriptEn: z.string(),
+  scriptFr: z.string(),
+  duration: z.number(),
+  sortOrder: z.number().optional(),
+  audience: z.enum(['FREE', 'PREMIUM']).optional(),
+});
+
 const importSchema = z.object({
   version: z.number(),
   subjects: z.array(
@@ -81,80 +92,72 @@ const importSchema = z.object({
             nameEn: z.string(),
             nameFr: z.string(),
             sortOrder: z.number().optional(),
-            lessons: z
-              .array(
-                z.object({
-                  titleEn: z.string(),
-                  titleFr: z.string(),
-                  audioUrl: z.string(),
-                  scriptEn: z.string(),
-                  scriptFr: z.string(),
-                  duration: z.number(),
-                  sortOrder: z.number().optional(),
-                }),
-              )
-              .optional(),
+            lessons: z.array(lessonImportSchema).max(100).optional(),
           }),
         )
+        .max(50)
         .optional(),
     }),
-  ),
+  ).max(50),
 });
 
 bulkRouter.post('/import', async (req, res, next) => {
   try {
     const input = importSchema.parse(req.body);
     const stats = { subjects: 0, chapters: 0, lessons: 0 };
+    const teacherId = req.auth!.userId;
 
-    for (const subjectData of input.subjects) {
-      const subject = await prisma.subject.create({
-        data: {
-          nameEn: subjectData.nameEn,
-          nameFr: subjectData.nameFr,
-          slugEn: subjectData.slugEn || '',
-          slugFr: subjectData.slugFr || '',
-          stream: subjectData.stream,
-          icon: subjectData.icon || '📚',
-          color: subjectData.color || '#6C63FF',
-        },
-      });
-      stats.subjects++;
+    await prisma.$transaction(async (tx) => {
+      for (const subjectData of input.subjects) {
+        const subject = await tx.subject.create({
+          data: {
+            nameEn: subjectData.nameEn,
+            nameFr: subjectData.nameFr,
+            slugEn: subjectData.slugEn || '',
+            slugFr: subjectData.slugFr || '',
+            stream: subjectData.stream,
+            icon: subjectData.icon || '📚',
+            color: subjectData.color || '#6C63FF',
+          },
+        });
+        stats.subjects++;
 
-      if (subjectData.chapters) {
-        for (const chapterData of subjectData.chapters) {
-          const chapter = await prisma.chapter.create({
-            data: {
-              nameEn: chapterData.nameEn,
-              nameFr: chapterData.nameFr,
-              sortOrder: chapterData.sortOrder || 0,
-              subjectId: subject.id,
-            },
-          });
-          stats.chapters++;
+        if (subjectData.chapters) {
+          for (const chapterData of subjectData.chapters) {
+            const chapter = await tx.chapter.create({
+              data: {
+                nameEn: chapterData.nameEn,
+                nameFr: chapterData.nameFr,
+                sortOrder: chapterData.sortOrder || 0,
+                subjectId: subject.id,
+              },
+            });
+            stats.chapters++;
 
-          if (chapterData.lessons) {
-            for (const lessonData of chapterData.lessons) {
-              await prisma.lesson.create({
-                data: {
-                  titleEn: lessonData.titleEn,
-                  titleFr: lessonData.titleFr,
-                  audioUrl: lessonData.audioUrl,
-                  scriptEn: lessonData.scriptEn,
-                  scriptFr: lessonData.scriptFr,
-                  duration: lessonData.duration,
-                  sortOrder: lessonData.sortOrder || 0,
-                  chapterId: chapter.id,
-                  teacherId: req.auth!.userId,
-                  status: 'PUBLISHED',
-                  audience: (lessonData as { audience?: 'FREE' | 'PREMIUM' }).audience ?? 'FREE',
-                },
-              });
-              stats.lessons++;
+            if (chapterData.lessons) {
+              for (const lessonData of chapterData.lessons) {
+                await tx.lesson.create({
+                  data: {
+                    titleEn: lessonData.titleEn,
+                    titleFr: lessonData.titleFr,
+                    audioUrl: lessonData.audioUrl,
+                    scriptEn: lessonData.scriptEn,
+                    scriptFr: lessonData.scriptFr,
+                    duration: lessonData.duration,
+                    sortOrder: lessonData.sortOrder || 0,
+                    chapterId: chapter.id,
+                    teacherId,
+                    status: 'PUBLISHED',
+                    audience: lessonData.audience ?? 'FREE',
+                  },
+                });
+                stats.lessons++;
+              }
             }
           }
         }
       }
-    }
+    }, { timeout: 30_000 });
 
     return res.status(201).json({
       message: 'Import complete',

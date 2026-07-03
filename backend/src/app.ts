@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { Prisma } from '@prisma/client';
 import { authRouter } from './routes/auth.routes';
@@ -33,8 +34,25 @@ const corsOrigin = env.CORS_ORIGIN === '*'
   : env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean);
 
 app.use(cors({ origin: corsOrigin }));
-app.use(morgan('dev'));
-app.use(express.json({ limit: '20mb' }));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+// Baseline rate limit runs before body parsing — auth routes have their own tighter limits
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV !== 'production' ? 2000 : 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many requests, please try again later' },
+});
+app.use(globalLimiter);
+
+// Bulk import needs a larger body limit than the rest of the API.
+// Mount it BEFORE the global express.json() so body-parser uses the 10mb limit for this
+// path and skips re-parsing when the global middleware runs later.
+app.use('/api/admin/bulk', express.json({ limit: '10mb' }), bulkRouter);
+
+// All other routes are capped at 1mb
+app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -50,7 +68,6 @@ app.use('/api/storage', storageRouter);
 app.use('/api/admin/users', adminUsersRouter);
 app.use('/api/admin/moderation', moderationRouter);
 app.use('/api/admin/stats', statsRouter);
-app.use('/api/admin/bulk', bulkRouter);
 app.use('/api/announcements', announcementsRouter);
 app.use('/api/feature-flags', featureFlagsRouter);
 app.use('/api/admin/content', adminContentRouter);
@@ -64,6 +81,21 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
       message: 'Validation error',
       errors: error.issues
     });
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Resource not found' });
+    }
+    if (error.code === 'P2002') {
+      return res.status(409).json({ message: 'Resource already exists' });
+    }
+    if (error.code === 'P2003') {
+      // Foreign-key constraint, e.g. deleting a teacher that still owns lessons.
+      return res.status(409).json({
+        message: 'This record is still referenced by other data and cannot be modified.',
+      });
+    }
   }
 
   if (error instanceof Prisma.PrismaClientInitializationError) {

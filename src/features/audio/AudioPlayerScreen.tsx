@@ -3,7 +3,7 @@ import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
 import { BACLesson } from '@/lib/models';
 import { getProgress } from '@/lib/services/BacApi';
-import { useAudio } from '@/contexts/AudioContext';
+import { useAudio, useAudioPosition } from '@/contexts/AudioContext';
 import { RootStackParamList } from '@/navigations';
 import Slider from '@react-native-community/slider';
 import {
@@ -122,8 +122,6 @@ const AudioPlayerScreen = ({ route }: Props) => {
   const {
     isPlaying,
     isLoading,
-    position,
-    duration,
     speed,
     currentLesson,
     loadLesson,
@@ -132,6 +130,7 @@ const AudioPlayerScreen = ({ route }: Props) => {
     seekBy,
     cycleSpeed,
   } = useAudio();
+  const { position, duration } = useAudioPosition();
 
   const selectedAudioUrl = useMemo(
     () => getAudioUrlForLanguage(lesson, activeLanguage) ?? lesson.audioUrl,

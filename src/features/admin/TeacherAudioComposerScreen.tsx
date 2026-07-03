@@ -252,7 +252,7 @@ const TeacherAudioComposerScreen = ({ route, navigation }: Props) => {
         file.mimeType ?? 'audio/mpeg',
       );
 
-      setManualAudioUrl(upload.publicUrl);
+      setManualAudioUrl(upload.path);
       if (mode !== 'MANUAL_UPLOAD') {
         setMode('MANUAL_UPLOAD');
       }
@@ -334,7 +334,7 @@ const TeacherAudioComposerScreen = ({ route, navigation }: Props) => {
         `recording-${Date.now()}.m4a`,
         'audio/mp4',
       );
-      setManualAudioUrl(upload.publicUrl);
+      setManualAudioUrl(upload.path);
       setMode('MANUAL_RECORDING');
       Alert.alert('Recording Uploaded', 'Recorded audio has been uploaded and is ready to publish.');
     } catch (error: any) {

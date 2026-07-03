@@ -11,14 +11,16 @@ const reviewSchema = z.object({
   action: z.enum(['approve', 'reject']),
 });
 
+const lessonStatusSchema = z.enum(['PENDING_REVIEW', 'PUBLISHED', 'REJECTED', 'DRAFT']);
+
 // GET /api/admin/moderation — list pending lessons
 moderationRouter.get('/', async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 20;
-    const status = (req.query.status as string) || 'PENDING_REVIEW';
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(Math.max(1, parseInt(req.query.limit as string) || 20), 100);
+    const status = lessonStatusSchema.catch('PENDING_REVIEW').parse(req.query.status);
 
-    const where: any = { status };
+    const where = { status };
 
     const [lessons, total] = await Promise.all([
       prisma.lesson.findMany({
@@ -35,7 +37,7 @@ moderationRouter.get('/', async (req, res, next) => {
     ]);
 
     return res.json({
-      contents: lessons.map((l: any) => ({
+      contents: lessons.map((l) => ({
         ...l,
         teacherName: l.teacher?.name || 'Unknown',
         teacherEmail: l.teacher?.email || '',
@@ -57,11 +59,18 @@ moderationRouter.put('/:id', async (req, res, next) => {
   try {
     const input = reviewSchema.parse(req.body);
 
+    const existing = await prisma.lesson.findUnique({
+      where: { id: req.params.id },
+      select: { status: true },
+    });
+    if (!existing) return res.status(404).json({ message: 'Lesson not found' });
+    if (existing.status !== 'PENDING_REVIEW') {
+      return res.status(409).json({ message: 'Lesson is not pending review' });
+    }
+
     const lesson = await prisma.lesson.update({
       where: { id: req.params.id },
-      data: {
-        status: input.action === 'approve' ? 'PUBLISHED' : 'REJECTED',
-      },
+      data: { status: input.action === 'approve' ? 'PUBLISHED' : 'REJECTED' },
     });
 
     return res.json(lesson);

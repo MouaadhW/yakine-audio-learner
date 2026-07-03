@@ -37,6 +37,14 @@ const audioPlayerSlice = createSlice({
     },
     clearPlayer: () => initialState,
   },
+  extraReducers: builder => {
+    // Reset the player on logout so one user's "now playing" lesson never bleeds
+    // into the next user's session. (auth/logout is dispatched by authSlice.)
+    builder.addMatcher(
+      (action): action is { type: string } => action.type === 'auth/logout',
+      () => initialState,
+    );
+  },
 });
 
 export const {

@@ -262,7 +262,7 @@ export async function uploadAudioFile(
   fileUri: string,
   fileName: string,
   mimeType = 'audio/mpeg',
-): Promise<{ path: string; publicUrl: string; filename: string }> {
+): Promise<{ path: string; filename: string }> {
   const formData = new FormData();
   formData.append('file', {
     uri: fileUri,

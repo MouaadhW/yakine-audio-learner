@@ -6,6 +6,7 @@ import { canRequestAccessSubject, resolveAllowedSubjectIds } from '../lib/subjec
 import {
   isLessonLockedForViewer,
   loadLessonListViewer,
+  redactLockedLessonContent,
 } from '../lib/lessonAccess';
 import { LessonStatus } from '@prisma/client';
 
@@ -67,10 +68,11 @@ chapterRouter.get('/', optionalAuth, async (req, res, next) => {
       ...ch,
       lessons: ch.lessons.map(l => {
         const { teacher, ...rest } = l;
+        const locked = isLessonLockedForViewer(listViewer, l.audience);
         return {
-          ...rest,
+          ...redactLockedLessonContent(rest, locked),
           teacherName: teacher?.name || 'Unknown Teacher',
-          locked: isLessonLockedForViewer(listViewer, l.audience),
+          locked,
         };
       }),
     }));

@@ -90,3 +90,6 @@ backend/dist/
 backend/.env
 backend/prisma/*.db
 backend/prisma/*.db-journal
+
+# Claude Code local (machine-specific) settings
+.claude/settings.local.json

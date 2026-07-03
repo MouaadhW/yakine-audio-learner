@@ -166,7 +166,7 @@ subjectRouter.get('/:id', optionalAuth, async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         chapters: {
-          include: { lessons: true },
+          include: { _count: { select: { lessons: true } } },
           orderBy: { sortOrder: 'asc' },
         },
       },
@@ -187,7 +187,7 @@ subjectRouter.get('/:id', optionalAuth, async (req, res, next) => {
   }
 });
 
-subjectRouter.post('/', requireAuth, requireRole('TEACHER', 'ADMIN'), async (req, res, next) => {
+subjectRouter.post('/', requireAuth, requireRole('ADMIN'), async (req, res, next) => {
   try {
     const input = createSubjectSchema.parse(req.body);
 

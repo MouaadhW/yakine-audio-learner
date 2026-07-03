@@ -27,7 +27,13 @@ const envSchema = z.object({
   ELEVENLABS_VOICE_FR: z.string().optional(),
   ELEVENLABS_VOICE_AR: z.string().optional(),
   TTS_REQUEST_TIMEOUT_MS: z.coerce.number().default(45000),
-  TEACHER_COMPOSER_MAX_CHARS: z.coerce.number().default(12000)
+  TEACHER_COMPOSER_MAX_CHARS: z.coerce.number().default(12000),
+  AUDIO_SIGNED_URL_TTL_S: z.coerce.number().default(7200),
+  RESEND_API_KEY: z.string().optional(),
+  FROM_EMAIL: z.string().email().default('noreply@yakine.tn'),
+  APP_SCHEME: z.string().default('yakine'),
+  PASSWORD_RESET_EXPIRES_MS: z.coerce.number().default(3_600_000),
+  EMAIL_VERIFICATION_EXPIRES_MS: z.coerce.number().default(86_400_000)
 });
 
 export const env = envSchema.parse(process.env);

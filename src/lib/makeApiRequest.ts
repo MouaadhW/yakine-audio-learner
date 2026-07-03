@@ -8,119 +8,117 @@ interface MakeApiRequestProps {
   options?: RequestInit;
 }
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
+let inflightRefresh: Promise<{ accessToken: string; refreshToken: string } | null> | null = null;
+
+async function attemptTokenRefresh(): Promise<{ accessToken: string; refreshToken: string } | null> {
+  if (inflightRefresh) return inflightRefresh;
+
+  inflightRefresh = (async () => {
+    const refreshToken = mmkv.getString(storageKeys.refreshToken);
+    if (!refreshToken) {
+      store.dispatch(logout());
+      return null;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+        signal: controller.signal,
+      });
+      if (response.ok) {
+        const tokens = await response.json();
+        if (tokens.accessToken && tokens.refreshToken) {
+          mmkv.setString(storageKeys.accessToken, tokens.accessToken);
+          mmkv.setString(storageKeys.refreshToken, tokens.refreshToken);
+          return tokens as { accessToken: string; refreshToken: string };
+        }
+      }
+      store.dispatch(logout());
+      return null;
+    } catch {
+      store.dispatch(logout());
+      return null;
+    } finally {
+      clearTimeout(timeoutId);
+      inflightRefresh = null;
+    }
+  })();
+
+  return inflightRefresh;
+}
+
+function withTimeout(callerSignal?: AbortSignal): { signal: AbortSignal; clear: () => void } {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      controller.abort();
+    } else {
+      callerSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
+  return { signal: controller.signal, clear: () => clearTimeout(id) };
+}
+
 export async function makeApiRequest({
   url,
   options = {},
 }: MakeApiRequestProps): Promise<Response> {
-  const timeoutController = new AbortController();
-  const timeoutMs = 10000;
-
-  let onAbort: (() => void) | undefined;
-
-  if (options.signal) {
-    onAbort = () => {
-      timeoutController.abort();
-    };
-
-    if (options.signal.aborted) {
-      timeoutController.abort();
-    } else {
-      options.signal.addEventListener('abort', onAbort, { once: true });
-    }
-  }
-
-  const timeoutId = setTimeout(() => {
-    timeoutController.abort();
-  }, timeoutMs);
-
-  const accessToken = mmkv.getString(storageKeys.accessToken);
-
-  let requestOptions: RequestInit = {
-    ...options,
-    signal: timeoutController.signal,
-    headers: {
-      ...options.headers,
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-    },
-  };
-
   if (!API_URL || API_URL.trim() === '') {
-    throw new Error(
-      'API_URL is not configured. Please set it in your .env file.',
-    );
+    throw new Error('API_URL is not configured. Please set it in your .env file.');
   }
 
   const requestUrl = `${API_URL}${url}`;
+  const callerSignal = options.signal ?? undefined;
 
+  const accessToken = mmkv.getString(storageKeys.accessToken);
+
+  const buildHeaders = (token: string | undefined): Record<string, string> => ({
+    ...(options.headers as Record<string, string> | undefined),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  });
+
+  const { signal, clear } = withTimeout(callerSignal);
   try {
-    const response = await fetch(requestUrl, requestOptions);
+    const response = await fetch(requestUrl, {
+      ...options,
+      signal,
+      headers: buildHeaders(accessToken),
+    });
 
-    if (response.status === 401) {
-      // Check if this is a session-expired error (logged in on another device)
-      const clonedResponse = response.clone();
-      try {
-        const body = await clonedResponse.json();
-        if (body.message && body.message.includes('Session expired')) {
-          // Session was invalidated by another login — force logout immediately
-          store.dispatch(logout());
-          return response;
-        }
-      } catch {
-        // ignore JSON parse errors
-      }
+    if (response.status !== 401) return response;
 
-      const refreshToken = mmkv.getString(storageKeys.refreshToken);
-      if (refreshToken) {
-        try {
-          const refreshController = new AbortController();
-          const refreshTimeoutId = setTimeout(() => {
-            refreshController.abort();
-          }, timeoutMs);
-          try {
-            const refreshResponse = await fetch(`${API_URL}/api/auth/refresh`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ refreshToken }),
-              signal: refreshController.signal,
-            });
-            if (refreshResponse.ok) {
-              const tokens = await refreshResponse.json();
-              if (tokens.accessToken && tokens.refreshToken) {
-                mmkv.setString(storageKeys.accessToken, tokens.accessToken);
-                mmkv.setString(storageKeys.refreshToken, tokens.refreshToken);
-                const retryOptions: RequestInit = {
-                  ...options,
-                  signal: timeoutController.signal,
-                  headers: {
-                    ...options.headers,
-                    Authorization: `Bearer ${tokens.accessToken}`,
-                  },
-                };
-                const retryResponse = await fetch(requestUrl, retryOptions);
-                return retryResponse;
-              }
-            }
-            // Refresh token rejected — force logout
-            store.dispatch(logout());
-          } finally {
-            clearTimeout(refreshTimeoutId);
-          }
-        } catch (refreshError) {
-          console.warn('Token refresh failed:', refreshError);
-          store.dispatch(logout());
-        }
-      } else {
-        // No refresh token available — force logout
+    // Cross-device session invalidation — no recovery possible
+    try {
+      const body = await response.clone().json();
+      if (body?.message?.includes('Session expired')) {
         store.dispatch(logout());
+        return response;
       }
-    }
+    } catch { /* ignore parse errors */ }
 
-    return response;
+    // Refresh (shared promise prevents concurrent refresh races)
+    const newTokens = await attemptTokenRefresh();
+    if (!newTokens) return response;
+
+    // Retry with a fresh timeout so the original timeout doesn't affect the retry
+    const { signal: retrySignal, clear: clearRetry } = withTimeout(callerSignal);
+    try {
+      return await fetch(requestUrl, {
+        ...options,
+        signal: retrySignal,
+        headers: buildHeaders(newTokens.accessToken),
+      });
+    } finally {
+      clearRetry();
+    }
   } finally {
-    clearTimeout(timeoutId);
-
-    if (options.signal && onAbort) {
-      options.signal.removeEventListener('abort', onAbort);
-    }
+    clear();
   }
 }

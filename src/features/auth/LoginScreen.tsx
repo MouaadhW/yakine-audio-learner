@@ -240,6 +240,15 @@ const LoginScreen = ({ navigation }: Props) => {
           </View>
 
           <TouchableOpacity
+            onPress={() => navigation.navigate('ForgotPassword')}
+            activeOpacity={0.7}
+            style={styles.forgotRow}>
+            <Text style={[styles.forgotText, { color: colors.primary }]}>
+              {isFrench ? 'Mot de passe oublié ?' : 'Forgot your password?'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[
               styles.button,
               { backgroundColor: colors.primary },
@@ -379,6 +388,13 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     ...DefaultStyles.fonts.semiBold,
+  },
+  forgotRow: {
+    alignItems: 'flex-end',
+  },
+  forgotText: {
+    fontSize: 13,
+    ...DefaultStyles.fonts.medium,
   },
   footer: {
     flexDirection: 'row',

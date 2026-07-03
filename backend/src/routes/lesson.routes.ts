@@ -3,13 +3,17 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole, optionalAuth } from '../middleware/auth';
 import { requireTeacherPostPermission } from '../middleware/teacherPostPermission';
-import { canRequestAccessSubject, resolveAllowedSubjectIds } from '../lib/subjectAccess';
+import { canRequestAccessSubject, canUserAccessSubject, resolveAllowedSubjectIds } from '../lib/subjectAccess';
 import {
   canViewerAccessLessonAudience,
   isLessonLockedForViewer,
   lessonListAudienceWhereInput,
   loadLessonListViewer,
+  redactLockedLessonContent,
+  LessonListViewer,
 } from '../lib/lessonAccess';
+import { batchSignAudioUrls } from '../lib/storageUpload';
+import { env } from '../config/env';
 
 const createLessonSchema = z.object({
   titleEn: z.string().min(2),
@@ -52,29 +56,29 @@ lessonRouter.get('/', optionalAuth, async (req, res, next) => {
     const page = parseInt(query.page || '1');
     const limit = parseInt(query.limit || '15');
 
-    const allowedIds = await resolveAllowedSubjectIds(prisma, req.auth);
-    if (allowedIds.length === 0) {
-      return res.json({
-        contents: [],
-        currentPage: page,
-        totalPage: 1,
-        pageSize: limit,
-        totalElements: 0,
-      });
+    const isAdmin = req.auth?.role === 'ADMIN';
+
+    // For admins: skip the expensive subject-ID list fetch and avoid a massive IN clause.
+    // For everyone else: fetch allowed IDs and the viewer subscription snapshot in parallel.
+    const [allowedIds, listViewer] = await Promise.all([
+      isAdmin ? Promise.resolve(null) : resolveAllowedSubjectIds(prisma, req.auth),
+      loadLessonListViewer(prisma, req.auth),
+    ]);
+
+    if (!isAdmin && allowedIds !== null && allowedIds.length === 0) {
+      return res.json({ contents: [], currentPage: page, totalPage: 1, pageSize: limit, totalElements: 0 });
     }
 
-    if (query.subjectId && !allowedIds.includes(query.subjectId)) {
-      return res.json({
-        contents: [],
-        currentPage: page,
-        totalPage: 1,
-        pageSize: limit,
-        totalElements: 0,
-      });
+    if (!isAdmin && allowedIds !== null && query.subjectId && !allowedIds.includes(query.subjectId)) {
+      return res.json({ contents: [], currentPage: page, totalPage: 1, pageSize: limit, totalElements: 0 });
     }
+
+    const subjectIdFilter: Record<string, unknown> = isAdmin
+      ? (query.subjectId ? { equals: query.subjectId } : {})
+      : { [query.subjectId ? 'equals' : 'in']: query.subjectId ?? allowedIds! };
 
     const chapterWhere: Record<string, unknown> = {
-      subjectId: query.subjectId ?? { in: allowedIds },
+      ...(Object.keys(subjectIdFilter).length > 0 && { subjectId: subjectIdFilter }),
     };
     if (query.chapterId) {
       chapterWhere.id = query.chapterId;
@@ -86,7 +90,6 @@ lessonRouter.get('/', optionalAuth, async (req, res, next) => {
     }
 
     const audienceFilter = lessonListAudienceWhereInput(req.auth);
-    const listViewer = await loadLessonListViewer(prisma, req.auth);
 
     const where: Record<string, unknown> = {
       status: 'PUBLISHED',
@@ -119,31 +122,45 @@ lessonRouter.get('/', optionalAuth, async (req, res, next) => {
       prisma.lesson.count({ where }),
     ]);
 
-    // Map to Page<T> format with both BAC and CMS-compatible fields
-    const contents = lessons.map((l: any) => ({
-      // BAC fields (used by LessonListScreen / AudioPlayer)
-      ...l,
-      locked: isLessonLockedForViewer(listViewer, l.audience),
-      teacherName: l.teacher?.name || 'Unknown Teacher',
-      // CMS Course-compatible fields (used by HomeScreen)
-      title: l.titleEn,
-      slug: l.id,
-      featured: false,
-      level: 'beginner' as const,
-      access: 'free' as const,
-      status: 'published' as const,
-      excerpt: l.scriptEn.substring(0, 120) + '...',
-      // CMS Post-compatible fields (used by HomeScreen recent posts)
-      wordCount: l.scriptEn.split(/\s+/).length,
-      visibility: 'public' as const,
-      publishedAt: l.createdAt.toISOString(),
-      meta: {
-        rating: '4.8',
-        ratingCount: '0',
-        enrolledCount: '0',
-        viewCount: '0',
-      },
-    }));
+    const contents = lessons.map((l: any) => {
+      const locked = isLessonLockedForViewer(listViewer, l.audience);
+      const scriptEn: string = l.scriptEn ?? '';
+      // Strip audio URLs, scripts, and transcripts for locked lessons.
+      // Signed URLs are added below only for accessible (unlocked) lessons.
+      const base = redactLockedLessonContent(l, locked);
+      return {
+        ...base,
+        locked,
+        teacherName: l.teacher?.name || 'Unknown Teacher',
+        title: l.titleEn,
+        slug: l.id,
+        featured: false,
+        level: 'beginner' as const,
+        access: locked ? 'premium' as const : 'free' as const,
+        status: 'published' as const,
+        // Don't leak script text in the excerpt for locked lessons.
+        excerpt: locked ? '' : scriptEn.substring(0, 120) + (scriptEn.length > 120 ? '...' : ''),
+        wordCount: locked ? 0 : (scriptEn ? scriptEn.split(/\s+/).length : 0),
+        visibility: 'public' as const,
+        publishedAt: l.createdAt.toISOString(),
+        meta: {
+          rating: '4.8',
+          ratingCount: '0',
+          enrolledCount: '0',
+          viewCount: '0',
+        },
+      };
+    });
+
+    // Generate signed URLs for accessible lessons in a single batch call
+    const accessible = contents.filter(l => !l.locked && l.audioUrl);
+    if (accessible.length > 0) {
+      const signed = await batchSignAudioUrls(
+        accessible.map(l => l.audioUrl),
+        env.AUDIO_SIGNED_URL_TTL_S,
+      );
+      accessible.forEach((l, i) => { l.audioUrl = signed[i] ?? ''; });
+    }
 
     return res.json({
       contents,
@@ -159,34 +176,64 @@ lessonRouter.get('/', optionalAuth, async (req, res, next) => {
 
 lessonRouter.get('/:id', optionalAuth, async (req, res, next) => {
   try {
-    const lesson = await prisma.lesson.findUnique({
-      where: { id: req.params.id },
-      include: {
-        chapter: {
-          include: { subject: true }
+    // Fetch lesson and the requesting user's profile in parallel (single round-trip each)
+    const [lesson, viewer] = await Promise.all([
+      prisma.lesson.findUnique({
+        where: { id: req.params.id },
+        include: {
+          chapter: { include: { subject: true } },
+          teacher: { select: { id: true, name: true } },
         },
-        teacher: {
-          select: { id: true, name: true }
-        }
-      }
-    });
+      }),
+      req.auth
+        ? prisma.user.findUnique({
+            where: { id: req.auth.userId },
+            select: {
+              role: true,
+              subscriptionTier: true,
+              lawUniversity: true,
+              lawMajor: true,
+              lawAcademicLevel: true,
+              educationLevel: true,
+              grade: true,
+              universityYear: true,
+              stream: true,
+            },
+          })
+        : Promise.resolve(null),
+    ]);
 
     if (!lesson) {
       return res.status(404).json({ message: 'Lesson not found' });
     }
 
-    const ok = await canRequestAccessSubject(prisma, req.auth, lesson.chapter.subject);
-    if (!ok) {
-      return res.status(403).json({ message: 'You do not have access to this lesson' });
+    // Admins bypass all access checks
+    if (req.auth?.role !== 'ADMIN') {
+      const subjectUser = viewer ? { ...viewer, role: req.auth!.role } : null;
+      if (!canUserAccessSubject(subjectUser, lesson.chapter.subject)) {
+        return res.status(403).json({ message: 'You do not have access to this lesson' });
+      }
+
+      const listViewer: LessonListViewer = viewer
+        ? { role: viewer.role, subscriptionTier: viewer.subscriptionTier }
+        : null;
+      if (isLessonLockedForViewer(listViewer, lesson.audience)) {
+        return res.status(403).json({ message: 'This lesson requires a premium subscription' });
+      }
     }
 
-    const audienceOk = await canViewerAccessLessonAudience(prisma, req.auth, lesson.audience);
-    if (!audienceOk) {
-      return res.status(403).json({ message: 'This lesson requires a premium subscription' });
-    }
+    // Sign all audio fields in one batch call before returning
+    const [signedUrl, signedEn, signedFr, signedAr] = await batchSignAudioUrls(
+      [lesson.audioUrl, lesson.audioUrlEn, lesson.audioUrlFr, lesson.audioUrlAr],
+      env.AUDIO_SIGNED_URL_TTL_S,
+    );
 
     return res.json({
       ...lesson,
+      audioUrl: signedUrl ?? lesson.audioUrl,
+      audioUrlEn: signedEn,
+      audioUrlFr: signedFr,
+      audioUrlAr: signedAr,
       teacherName: lesson.teacher?.name || 'Unknown Teacher',
       title: lesson.titleEn,
       slug: lesson.id,

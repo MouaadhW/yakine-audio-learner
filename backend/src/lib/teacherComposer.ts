@@ -198,28 +198,28 @@ export async function processAudioGenerationJob(jobId: string) {
       });
 
       if (language === 'EN') {
-        lessonUpdate.audioUrlEn = upload.publicUrl;
+        lessonUpdate.audioUrlEn = upload.path;
         if (!job.lesson.scriptEn) {
           lessonUpdate.scriptEn = transcript;
         }
       }
 
       if (language === 'FR') {
-        lessonUpdate.audioUrlFr = upload.publicUrl;
+        lessonUpdate.audioUrlFr = upload.path;
         if (!job.lesson.scriptFr) {
           lessonUpdate.scriptFr = transcript;
         }
       }
 
       if (language === 'AR') {
-        lessonUpdate.audioUrlAr = upload.publicUrl;
+        lessonUpdate.audioUrlAr = upload.path;
         if (!job.lesson.scriptAr) {
           lessonUpdate.scriptAr = transcript;
         }
       }
 
       if (!fallbackAudioUrl || job.lesson.defaultAudioLanguage === language) {
-        fallbackAudioUrl = upload.publicUrl;
+        fallbackAudioUrl = upload.path;
       }
     }
 

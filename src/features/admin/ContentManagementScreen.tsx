@@ -224,7 +224,7 @@ const ContentManagementScreen = () => {
       const uploadResult = await uploadAudioFile(file.uri, file.name ?? 'audio.mp3');
       setFormValues(prev => ({
         ...prev,
-        audioUrl: uploadResult.publicUrl,
+        audioUrl: uploadResult.path,
       }));
       Alert.alert('Upload Complete', 'Audio file uploaded successfully');
     } catch (e: any) {

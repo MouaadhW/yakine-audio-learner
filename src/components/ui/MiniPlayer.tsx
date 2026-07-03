@@ -3,17 +3,18 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import { Text } from './Text';
 import { useAppSelector } from '@/lib/hooks';
 import { selectTheme } from '@/features/themeSlice';
-import { useAudio } from '@/contexts/AudioContext';
+import { useAudio, useAudioPosition } from '@/contexts/AudioContext';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@/navigations';
-import { PauseIcon, PlayIcon } from 'lucide-react-native';
+import { PauseIcon, PlayIcon, XIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const MiniPlayer = () => {
-  const { currentLesson, isPlaying, position, duration, togglePlay } = useAudio();
+  const { currentLesson, isPlaying, togglePlay, stop } = useAudio();
+  const { position, duration } = useAudioPosition();
   const { colors } = useAppSelector(selectTheme);
   const navigation = useNavigation<Nav>();
   const { i18n } = useTranslation();
@@ -67,6 +68,16 @@ const MiniPlayer = () => {
             <PlayIcon size={18} color={colors.primary} />
           )}
         </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={e => {
+            e.stopPropagation?.();
+            stop();
+          }}
+          hitSlop={8}
+          style={styles.closeBtn}>
+          <XIcon size={18} color={colors.muted} />
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -105,6 +116,12 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeBtn: {
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },

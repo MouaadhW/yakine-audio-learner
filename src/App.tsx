@@ -22,15 +22,11 @@ import { store } from './lib/store';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      staleTime: 5 * 60 * 1000, // 5 min — subjects/chapters/lessons don't change often
+      gcTime: 10 * 60 * 1000,   // keep unused data in cache for 10 min
       retry: (failureCount, error) => {
-        if (error instanceof ApiError) {
-          return false;
-        }
-
-        if (failureCount >= 1) {
-          return false;
-        }
-
+        if (error instanceof ApiError) return false;
+        if (failureCount >= 1) return false;
         return true;
       },
     },
@@ -47,30 +43,6 @@ const queryClient = new QueryClient({
 
 const App = () => {
   useEffect(() => {
-    const setupAppServices = async () => {
-      let isExpoGo = false;
-
-      try {
-        const constantsModule = require('expo-constants') as {
-          default?: { appOwnership?: string };
-          appOwnership?: string;
-        };
-        const constants = constantsModule.default ?? constantsModule;
-        isExpoGo = constants.appOwnership === 'expo';
-      } catch {
-        isExpoGo = false;
-      }
-
-      if (isExpoGo) {
-        return;
-      }
-
-      const { setupTrackPlayer } = await import('./lib/audio/setupTrackPlayer');
-      await setupTrackPlayer();
-    };
-
-    void setupAppServices();
-
     let appState = AppState.currentState;
 
     const subscription = AppState.addEventListener(
@@ -97,7 +69,6 @@ const App = () => {
           nextState.isInternetReachable !== false;
 
         setOnline(isOnline);
-        console.log(isOnline ? 'connected' : 'disconnected');
       });
     });
 
