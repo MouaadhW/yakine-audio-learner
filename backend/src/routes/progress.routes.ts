@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth } from '../middleware/auth';
 import { isLessonLockedForViewer, loadLessonListViewer, redactLockedLessonContent } from '../lib/lessonAccess';
+import { processGamificationAction } from '../lib/gamification';
 
 const upsertSchema = z.object({
   lessonId: z.string().min(1),
@@ -54,6 +55,15 @@ progressRouter.post('/', requireAuth, async (req, res, next) => {
   try {
     const input = upsertSchema.parse(req.body);
 
+    const existing = await prisma.progress.findUnique({
+      where: {
+        userId_lessonId: {
+          userId: req.auth!.userId,
+          lessonId: input.lessonId
+        }
+      }
+    });
+
     const progress = await prisma.progress.upsert({
       where: {
         userId_lessonId: {
@@ -73,7 +83,12 @@ progressRouter.post('/', requireAuth, async (req, res, next) => {
       }
     });
 
-    return res.status(201).json(progress);
+    let gamification = null;
+    if (input.completed && !existing?.completed) {
+      gamification = await processGamificationAction(req.auth!.userId, 5);
+    }
+
+    return res.status(201).json({ progress, gamification });
   } catch (error) {
     return next(error);
   }

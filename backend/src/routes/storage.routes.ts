@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import multer from 'multer';
+import os from 'os';
+import fsp from 'fs/promises';
+import { uploadFileToStorage } from '../lib/storageUpload';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { env } from '../config/env';
 import { getSupabase } from '../lib/supabase';
 import { prisma } from '../lib/prisma';
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 } // 100 MB max
-});
+const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 100 * 1024 * 1024 } });
 
 const BUCKET = env.STORAGE_BUCKET;
 
@@ -85,30 +85,14 @@ storageRouter.post(
         return res.status(400).json({ message: 'Unsupported file type' });
       }
 
-      await ensureBucket();
-      const supabase = getSupabase();
-      const filename = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const storagePath = `lessons/${filename}`;
-
-      const { data, error } = await supabase.storage
-        .from(BUCKET)
-        .upload(storagePath, req.file.buffer, {
-          contentType: req.file.mimetype,
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) {
-        console.error('Supabase upload error:', error);
-        return res.status(500).json({ message: 'Upload failed' });
+      const filePath = (req.file as any).path as string;
+      if (!filePath) return res.status(400).json({ message: 'No file path available' });
+      try {
+        const uploadResult = await uploadFileToStorage({ filePath, contentType: req.file.mimetype, extension: ext, folder: 'lessons', ownerId: req.auth!.userId, ownerType: 'TEACHER' });
+        return res.status(201).json({ path: uploadResult.path, filename: uploadResult.filename });
+      } finally {
+        try { await fsp.unlink(filePath); } catch (e) { /* ignore */ }
       }
-
-      // Return the storage path — callers store this in the DB.
-      // Signed URLs are generated at serve time; never store public URLs.
-      return res.status(201).json({
-        path: data.path,
-        filename
-      });
     } catch (error) {
       return next(error);
     }
@@ -175,19 +159,8 @@ storageRouter.delete('/file', requireAuth, requireRole('TEACHER', 'ADMIN'), asyn
     }
 
     if (req.auth!.role === 'TEACHER') {
-      const owned = await prisma.lesson.findFirst({
-        where: {
-          teacherId: req.auth!.userId,
-          OR: [
-            { audioUrl: { contains: filePath } },
-            { audioUrlEn: { contains: filePath } },
-            { audioUrlFr: { contains: filePath } },
-            { audioUrlAr: { contains: filePath } },
-          ],
-        },
-        select: { id: true },
-      });
-      if (!owned) {
+      const stored = await prisma.storedFile.findUnique({ where: { path: filePath } });
+      if (!stored || stored.ownerId !== req.auth!.userId) {
         return res.status(403).json({ message: 'You do not own this file' });
       }
     }
@@ -199,6 +172,13 @@ storageRouter.delete('/file', requireAuth, requireRole('TEACHER', 'ADMIN'), asyn
 
     if (error) {
       return res.status(500).json({ message: 'Failed to delete file' });
+    }
+
+    // Remove stored file record if exists
+    try {
+      await prisma.storedFile.deleteMany({ where: { path: filePath } });
+    } catch (e) {
+      // ignore DB errors on cleanup
     }
 
     return res.json({ message: 'File deleted' });

@@ -1,0 +1,29 @@
+groups:
+  - name: yakine-alerts
+    rules:
+      - alert: MediaTranscodeSlow
+        expr: histogram_quantile(0.95, sum(rate(media_transcode_duration_seconds_bucket[5m])) by (le)) > 120
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "95th percentile media transcode > 120s"
+          description: "Media transcode durations are high (95th percentile > 2 minutes). Check media worker backlog."
+
+      - alert: MediaQueueBacklog
+        expr: increase(bull_queue_size{queue="media-processing"}[10m]) > 0 and bull_queue_size{queue="media-processing"} > 10
+        for: 2m
+        labels:
+          severity: page
+        annotations:
+          summary: "Media processing queue backlog"
+          description: "Media processing queue has more than 10 jobs pending for over 2 minutes. Consider scaling media-worker."
+
+      - alert: PushQueueBacklog
+        expr: bull_queue_size{queue="push"} > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Push queue backlog"
+          description: "Push queue has a large backlog (>100). Review job failures and rate limits."

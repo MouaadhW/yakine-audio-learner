@@ -22,6 +22,13 @@ model User {
   emailVerified    Boolean            @default(false)
   emailVerifiedAt  DateTime?
   createdAt        DateTime        @default(now())
+  
+  // Gamification fields
+  xp            Int       @default(0)
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastStreakAt  DateTime?
+
   educationLevel   EducationLevel?
   grade            Int?
   universityYear   Int?
@@ -34,12 +41,14 @@ model User {
   lessons              Lesson[]                @relation("TeacherLessons")
   passwordResetTokens  PasswordResetToken[]
   emailVerifTokens     EmailVerificationToken[]
-  audioGenerationJobs AudioGenerationJob[] @relation("TeacherAudioGenerationJobs")
-  progress           Progress[]
-  downloads          Download[]
-  refreshTokens      RefreshToken[]
-  teacherScopes      TeacherScope[]
-  teacherLawSubjects TeacherLawSubject[]
+  audioGenerationJobs  AudioGenerationJob[]    @relation("TeacherAudioGenerationJobs")
+  progress             Progress[]
+  downloads            Download[]
+  refreshTokens        RefreshToken[]
+  teacherScopes        TeacherScope[]
+  teacherLawSubjects   TeacherLawSubject[]
+  quizAttempts         QuizAttempt[]
+  badges               UserBadge[]
 }
 
 enum LawRegion {
@@ -79,6 +88,7 @@ model RefreshToken {
 enum Role {
   STUDENT
   TEACHER
+  PARENT
   ADMIN
 }
 
@@ -178,6 +188,8 @@ model Lesson {
   progress    Progress[]
   downloads   Download[]
   generationJobs AudioGenerationJob[]
+  quiz        Quiz?
+  quizAttempts QuizAttempt[]
 
   @@index([chapterId])
   @@index([teacherId])
@@ -227,6 +239,7 @@ model AudioGenerationJob {
   errorMessage       String?
   attemptCount       Int                  @default(0)
   requestedAt        DateTime             @default(now())
+  traceId            String?              
   startedAt          DateTime?
   completedAt        DateTime?
   createdAt          DateTime             @default(now())
@@ -234,6 +247,47 @@ model AudioGenerationJob {
 
   @@index([lessonId])
   @@index([status, createdAt])
+  @@index([traceId])
+}
+
+model ParentStudentLink {
+  id         String   @id @default(cuid())
+  parentId   String
+  studentId  String
+  inviteCode String   @unique
+  createdAt  DateTime @default(now())
+
+  parent     User     @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+  @@index([studentId])
+}
+
+model PushToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// StoredFile keeps a record of files uploaded to object storage and their owner
+model StoredFile {
+  id        String   @id @default(cuid())
+  path      String   @unique
+  ownerId   String?  
+  ownerType String?  // e.g. 'USER', 'TEACHER', 'LESSON'
+  lessonId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([lessonId])
 }
 
 model TeacherLawSubject {
@@ -255,17 +309,21 @@ enum LessonStatus {
 }
 
 model Progress {
-  id         String   @id @default(cuid())
-  userId     String
-  lessonId   String
-  position   Int      @default(0)
-  completed  Boolean  @default(false)
-  updatedAt  DateTime @default(now()) @updatedAt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  lesson     Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  userId      String
+  lessonId    String
+  position    Int       @default(0)
+  completed   Boolean   @default(false)
+  // Spaced repetition: set true when latest quiz score < 60%
+  resurface   Boolean   @default(false)
+  resurfaceAt DateTime?
+  updatedAt   DateTime  @default(now()) @updatedAt
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
   @@index([updatedAt])
+  @@index([userId, resurface])
 }
 
 model Download {
@@ -333,4 +391,94 @@ model TeacherScope {
   createdAt      DateTime       @default(now())
 
   @@unique([teacherId, educationLevel, grade, universityYear, stream])
+}
+
+// ─────────────────────────────────────────────────────────
+// Quiz module
+// ─────────────────────────────────────────────────────────
+
+enum QuizQuestionType {
+  SINGLE   // exactly one correct option
+  MULTIPLE // one or more correct options
+}
+
+model Quiz {
+  id        String         @id @default(cuid())
+  lessonId  String         @unique
+  lesson    Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model QuizQuestion {
+  id         String           @id @default(cuid())
+  quizId     String
+  quiz       Quiz             @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionFr String
+  questionEn String?
+  questionAr String?
+  type       QuizQuestionType @default(SINGLE)
+  sortOrder  Int              @default(0)
+  options    QuizOption[]
+
+  @@index([quizId])
+}
+
+model QuizOption {
+  id            String       @id @default(cuid())
+  questionId    String
+  question      QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  labelFr       String
+  labelEn       String?
+  labelAr       String?
+  isCorrect     Boolean      @default(false)
+  // Short explanation shown to student when they pick a wrong answer
+  explanationFr String?
+  explanationEn String?
+  explanationAr String?
+  sortOrder     Int          @default(0)
+
+  @@index([questionId])
+}
+
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  // 0.0–1.0 — fraction of questions answered correctly
+  score       Float
+  // Raw snapshot: [{questionId, selectedOptionIds: string[]}]
+  answers     Json
+  completedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lessonId])
+  @@index([userId, completedAt])
+}
+
+// ─────────────────────────────────────────────────────────
+// Gamification module
+// ─────────────────────────────────────────────────────────
+
+model Badge {
+  id          String      @id @default(cuid())
+  nameFr      String
+  description String
+  icon        String      
+  createdAt   DateTime    @default(now())
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id         String   @id @default(cuid())
+  userId     String
+  badgeId    String
+  unlockedAt DateTime @default(now())
+  
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge      Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
 }

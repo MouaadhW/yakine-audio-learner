@@ -1,0 +1,41 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "type": "graph",
+      "title": "Media Transcode Duration (95th pct)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(media_transcode_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "95thpct"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "type": "stat",
+      "title": "Media Queue Size",
+      "targets": [
+        {
+          "expr": "bull_queue_size{queue=\"media-processing\"}",
+          "legendFormat": "media-processing"
+        }
+      ],
+      "datasource": "Prometheus"
+    },
+    {
+      "type": "stat",
+      "title": "Push Queue Size",
+      "targets": [
+        {
+          "expr": "bull_queue_size{queue=\"push\"}",
+          "legendFormat": "push"
+        }
+      ],
+      "datasource": "Prometheus"
+    }
+  ],
+  "title": "Yakine - Media Ops"
+}

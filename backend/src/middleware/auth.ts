@@ -7,7 +7,7 @@ declare global {
     interface Request {
       auth?: {
         userId: string;
-        role: 'STUDENT' | 'TEACHER' | 'ADMIN';
+        role: 'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN';
         sessionId: string;
       };
     }
@@ -104,7 +104,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
   return next();
 }
 
-export function requireRole(...roles: Array<'STUDENT' | 'TEACHER' | 'ADMIN'>) {
+export function requireRole(...roles: Array<'STUDENT' | 'TEACHER' | 'PARENT' | 'ADMIN'>) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.auth) return res.status(401).json({ message: 'Unauthorized' });
     if (!roles.includes(req.auth.role)) return res.status(403).json({ message: 'Forbidden' });

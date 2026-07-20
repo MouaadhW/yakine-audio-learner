@@ -22,9 +22,32 @@ import { adminContentRouter } from './routes/admin-content.routes';
 import { teacherScopesRouter } from './routes/teacher-scopes.routes';
 import { adminTeacherLawRouter } from './routes/admin-teacher-law.routes';
 import { teacherComposerRouter } from './routes/teacher-composer.routes';
+import monitorRouter from './routes/monitor.routes';
+import { initSentry } from './sentry';
+import { quizRouter } from './routes/quiz.routes';
+import { adminQuizRouter } from './routes/admin-quiz.routes';
+import { gamificationRouter } from './routes/gamification.routes';
+import parentRouter from './routes/parent.routes';
+import { liveRouter } from './routes/live.routes';
+import pushRouter from './routes/push.routes';
+import dlqRouter from './routes/dlq.routes';
 import { env } from './config/env';
+import { metricsMiddleware, metricsEndpoint } from './metrics';
 
 export const app = express();
+
+// If running behind a proxy/load balancer, enable trust proxy to allow IP allowlist checks to work
+app.set('trust proxy', true);
+
+// Initialize Sentry if configured
+initSentry();
+
+// Sentry request handler should be first to capture requests
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const Sentry = require('@sentry/node');
+  app.use(Sentry.Handlers.requestHandler());
+} catch {}
 
 app.use(helmet());
 
@@ -54,8 +77,42 @@ app.use('/api/admin/bulk', express.json({ limit: '10mb' }), bulkRouter);
 // All other routes are capped at 1mb
 app.use(express.json({ limit: '1mb' }));
 
+// Metrics middleware — lightweight and fast
+app.use(metricsMiddleware);
+
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Expose Prometheus metrics at /metrics — protect with MONITOR_SECRET or admin
+app.get('/metrics', (req, res, next) => {
+  const token = req.header('x-monitor-token');
+  const envToken = process.env.MONITOR_SECRET;
+  if (envToken && token === envToken) return metricsEndpoint(req, res);
+
+  // Basic auth
+  const auth = req.headers.authorization;
+  if (auth && auth.startsWith('Basic ')) {
+    const cred = Buffer.from(auth.replace('Basic ', ''), 'base64').toString('utf8');
+    const [user, pass] = cred.split(':');
+    const allowedUser = process.env.MONITOR_BASIC_USER;
+    const allowedPass = process.env.MONITOR_BASIC_PASS;
+    if (allowedUser && allowedPass && user === allowedUser && pass === allowedPass) return metricsEndpoint(req, res);
+  }
+
+  // IP allowlist
+  const allow = process.env.MONITOR_ALLOWLIST;
+  if (allow) {
+    const ips = allow.split(',').map(s => s.trim()).filter(Boolean);
+    const remote = req.ip || (req as any).connection?.remoteAddress;
+    if (remote && ips.includes(String(remote))) return metricsEndpoint(req, res);
+  }
+
+  return requireAuth(req as any, res as any, err => {
+    if (err) return res.status(401).json({ message: 'Unauthorized' });
+    // @ts-ignore
+    return requireRole('ADMIN')(req as any, res as any, next as any);
+  });
 });
 
 app.use('/api/auth', authRouter);
@@ -74,6 +131,14 @@ app.use('/api/admin/content', adminContentRouter);
 app.use('/api/admin/teacher-scopes', teacherScopesRouter);
 app.use('/api/admin/teacher-law', adminTeacherLawRouter);
 app.use('/api/teacher-composer', teacherComposerRouter);
+app.use('/api/quiz', quizRouter);
+app.use('/api/admin/quiz', adminQuizRouter);
+app.use('/api/gamification', gamificationRouter);
+app.use('/api/admin/monitor', monitorRouter);
+app.use('/api/parents', parentRouter);
+app.use('/api/live', liveRouter);
+app.use('/api/push', pushRouter);
+app.use('/api/admin/dlq', dlqRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error instanceof z.ZodError) {
@@ -105,5 +170,12 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
   }
 
   console.error(error);
+  // Sentry error handler (if available)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Sentry = require('@sentry/node');
+    app.use(Sentry.Handlers.errorHandler());
+  } catch {}
+
   return res.status(500).json({ message: 'Internal server error' });
 });

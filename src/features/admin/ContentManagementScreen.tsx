@@ -14,7 +14,11 @@ import {
   SearchIcon,
   Trash2Icon,
   UploadIcon,
+  BookOpenIcon,
 } from 'lucide-react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '@/navigations';
 import { Text } from '@/components/ui/Text';
 import { Loading } from '@/components/ui/Loading';
 import { ErrorView } from '@/components/ui/ErrorView';
@@ -116,6 +120,7 @@ const lessonFields: FormField[] = [
 const ContentManagementScreen = () => {
   const { colors } = useAppSelector(selectTheme);
   const queryClient = useQueryClient();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -281,6 +286,11 @@ const ContentManagementScreen = () => {
           )}
         </View>
         <View style={styles.actionCol}>
+          <TouchableOpacity
+            style={[styles.actionBtn, { backgroundColor: '#a855f720' }]}
+            onPress={() => navigation.navigate('AdminQuizEditor', { lessonId: item.id, title: item.titleEn })}>
+            <BookOpenIcon size={14} color="#a855f7" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.primary + '20' }]}
             onPress={() => openEdit(item)}>

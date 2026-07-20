@@ -8,6 +8,8 @@ import { getActiveAnnouncements } from '@/lib/services/AdminApi';
 import { getSubjects } from '@/lib/services/BacApi';
 import { makeApiRequest } from '@/lib/makeApiRequest';
 import { validateApiResponse } from '@/lib/validateApiResponse';
+import { QuizApi } from '@/lib/services/QuizApi';
+import { GamificationApi } from '@/lib/services/GamificationApi';
 import { BottomTabParamList, RootStackParamList } from '@/navigations';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
@@ -134,7 +136,27 @@ const HomeScreen = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const isFetching = subjectsFetching || lessonsFetching;
+  const {
+    data: resurfaceLessons,
+    isFetching: resurfaceFetching,
+    refetch: refetchResurface,
+  } = useQuery({
+    queryKey: ['resurface-lessons'],
+    queryFn: () => QuizApi.getResurfaceLessons(),
+    staleTime: 60 * 1000,
+  });
+
+  const {
+    data: gamificationStats,
+    isFetching: statsFetching,
+    refetch: refetchStats,
+  } = useQuery({
+    queryKey: ['gamification-stats'],
+    queryFn: () => GamificationApi.getMyStats(),
+    staleTime: 60 * 1000,
+  });
+
+  const isFetching = subjectsFetching || lessonsFetching || resurfaceFetching || statsFetching;
 
   const categoryChips = useMemo(() => (subjects ?? []).slice(0, 4), [subjects]);
 
@@ -152,6 +174,8 @@ const HomeScreen = () => {
   const handleRefresh = () => {
     refetchSubjects();
     refetchLessons();
+    refetchResurface();
+    refetchStats();
   };
 
   const themeStyle = { backgroundColor: colors.background };
@@ -259,6 +283,19 @@ const HomeScreen = () => {
           />
         }>
         <View style={[themeStyle, styles.container]}>
+          {gamificationStats && (
+            <View style={styles.gamificationHeader}>
+              <TouchableOpacity style={styles.gamificationBadge} onPress={() => rootNavigation.navigate('Leaderboard')}>
+                <Text style={styles.gamificationIcon}>🔥</Text>
+                <Text style={[styles.gamificationText, { color: colors.text }]}>{gamificationStats.currentStreak} Streak</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.gamificationBadge} onPress={() => rootNavigation.navigate('Leaderboard')}>
+                <Text style={styles.gamificationIcon}>⭐</Text>
+                <Text style={[styles.gamificationText, { color: colors.text }]}>{gamificationStats.xp} XP</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <Text style={{ ...styles.searchTitle, color: colors.text }}>
             {t('whatDoYouWantToLearn')}
           </Text>
@@ -361,6 +398,25 @@ const HomeScreen = () => {
           />
 
           <Spacer orientation="vertical" spacing={24} />
+
+          {/* ─── Review Suggested (Spaced Repetition) ─── */}
+          {resurfaceLessons && resurfaceLessons.length > 0 && (
+            <>
+              <Heading
+                title={t('reviewSuggested') || 'Review Suggested'}
+              />
+              <Spacer orientation="vertical" spacing={12} />
+              <FlatList
+                data={resurfaceLessons}
+                renderItem={({ item }) => renderLessonCard({ item: item.lesson as BACLesson })}
+                keyExtractor={item => item.lessonId}
+                horizontal
+                ItemSeparatorComponent={listItemSeparator}
+                showsHorizontalScrollIndicator={false}
+              />
+              <Spacer orientation="vertical" spacing={24} />
+            </>
+          )}
 
           {/* ─── Recent Lessons ─── */}
           <Heading
@@ -473,6 +529,28 @@ const homeStyles = StyleSheet.create({
   lessonFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   lessonDuration: { fontSize: 12 },
   lessonTeacher: { fontSize: 11, marginTop: 2 },
+  gamificationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginBottom: 8,
+  },
+  gamificationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0000000A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 6,
+  },
+  gamificationIcon: {
+    fontSize: 16,
+  },
+  gamificationText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });
 
 export default HomeScreen;

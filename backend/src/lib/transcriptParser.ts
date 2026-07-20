@@ -19,12 +19,22 @@ function getExtension(filename: string): string {
 export async function extractTranscriptFromUpload(file: Express.Multer.File): Promise<string> {
   const extension = getExtension(file.originalname);
 
+  // Support both memory and disk-backed multer files
+  let buffer: Buffer;
+  if (file.buffer && file.buffer.length) {
+    buffer = file.buffer;
+  } else if ((file as any).path) {
+    buffer = await (await import('fs/promises')).readFile((file as any).path);
+  } else {
+    throw new Error('No file buffer or path available');
+  }
+
   if (extension === 'txt' || file.mimetype.startsWith('text/')) {
-    return normalizeTranscript(file.buffer.toString('utf8'));
+    return normalizeTranscript(buffer.toString('utf8'));
   }
 
   if (extension === 'pdf' || file.mimetype === 'application/pdf') {
-    const parsed = await pdfParse(file.buffer);
+    const parsed = await pdfParse(buffer);
     return normalizeTranscript(parsed.text ?? '');
   }
 
@@ -33,7 +43,7 @@ export async function extractTranscriptFromUpload(file: Express.Multer.File): Pr
     file.mimetype ===
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   ) {
-    const result = await mammoth.extractRawText({ buffer: file.buffer });
+    const result = await mammoth.extractRawText({ buffer });
     return normalizeTranscript(result.value ?? '');
   }
 

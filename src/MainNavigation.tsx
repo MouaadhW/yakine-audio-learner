@@ -38,7 +38,12 @@ import StatsScreen from './features/admin/StatsScreen';
 import UserManagementScreen from './features/admin/UserManagementScreen';
 import TeacherScopesScreen from './features/admin/TeacherScopesScreen';
 import TeacherLawSubjectsScreen from './features/admin/TeacherLawSubjectsScreen';
-import TeacherAudioComposerScreen from './features/admin/TeacherAudioComposerScreen';
+import TeacherAudioComposerScreen from './features/composer/TeacherAudioComposerScreen';
+import QuizScreen from './features/quiz/QuizScreen';
+import QuizResultScreen from './features/quiz/QuizResultScreen';
+import AdminQuizEditorScreen from './features/admin/AdminQuizEditorScreen';
+import LeaderboardScreen from './features/gamification/LeaderboardScreen';
+import ParentDashboardScreen from './features/parents/ParentDashboardScreen';
 import ChapterListScreen from './features/subjects/ChapterListScreen';
 import LessonListScreen from './features/subjects/LessonListScreen';
 import SubjectListScreen from './features/subjects/SubjectListScreen';
@@ -358,7 +363,32 @@ const MainNavigation = () => {
           <Stack.Screen
             name="TeacherAudioComposer"
             component={TeacherAudioComposerScreen}
-            options={{ title: 'Teacher Audio Composer' }}
+            options={{ title: 'Audio Composer' }}
+          />
+          <Stack.Screen
+            name="QuizScreen"
+            component={QuizScreen}
+            options={{ presentation: 'fullScreenModal', headerShown: false }}
+          />
+          <Stack.Screen
+            name="QuizResultScreen"
+            component={QuizResultScreen}
+            options={{ presentation: 'fullScreenModal', headerShown: false }}
+          />
+          <Stack.Screen
+            name="AdminQuizEditor"
+            component={AdminQuizEditorScreen}
+            options={{ title: 'Manage Quiz' }}
+          />
+          <Stack.Screen
+            name="Leaderboard"
+            component={LeaderboardScreen}
+            options={{ title: 'Leaderboard' }}
+          />
+          <Stack.Screen
+            name="ParentDashboard"
+            component={ParentDashboardScreen}
+            options={{ title: 'Parent Dashboard' }}
           />
             </>
           )}

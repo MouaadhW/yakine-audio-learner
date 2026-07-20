@@ -34,6 +34,16 @@ const envSchema = z.object({
   APP_SCHEME: z.string().default('yakine'),
   PASSWORD_RESET_EXPIRES_MS: z.coerce.number().default(3_600_000),
   EMAIL_VERIFICATION_EXPIRES_MS: z.coerce.number().default(86_400_000)
-});
+  ,
+  REDIS_URL: z.string().optional()
+  ,
+  SENTRY_DSN: z.string().optional()
+  ,
+  MONITOR_SECRET: z.string().optional()
+  ,
+  MONITOR_BASIC_USER: z.string().optional(),
+  MONITOR_BASIC_PASS: z.string().optional(),
+  MONITOR_ALLOWLIST: z.string().optional()
+ });
 
 export const env = envSchema.parse(process.env);

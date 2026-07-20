@@ -77,6 +77,9 @@ export interface BACLesson {
   composerAutoPublish?: boolean;
   generationRequestedAt?: string;
   generatedAt?: string;
+  hasQuiz?: boolean; // Client-side logic might need to know if a quiz exists
+  resurface?: boolean;
+  resurfaceAt?: string | null;
 }
 
 export interface AudioPlayerState {
@@ -94,9 +97,108 @@ export interface ProgressEntry {
   lessonId: string;
   position: number;
   completed: boolean;
+  resurface?: boolean;
+  resurfaceAt?: string | null;
   lesson: BACLesson;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export type QuizQuestionType = 'SINGLE' | 'MULTIPLE';
+
+export interface QuizOption {
+  id: string;
+  questionId?: string;
+  label: string; // The backend returns just `label` (resolved by language)
+  labelFr?: string; // Admin uses these
+  labelEn?: string;
+  labelAr?: string;
+  isCorrect?: boolean;
+  explanation?: string | null; // Student feedback
+  explanationFr?: string; // Admin uses these
+  explanationEn?: string;
+  explanationAr?: string;
+  sortOrder: number;
+}
+
+export interface QuizQuestion {
+  id: string;
+  quizId?: string;
+  question: string; // resolved by language
+  questionFr?: string;
+  questionEn?: string;
+  questionAr?: string;
+  type: QuizQuestionType;
+  sortOrder: number;
+  options: QuizOption[];
+}
+
+export interface Quiz {
+  id: string;
+  lessonId: string;
+  questions: QuizQuestion[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface QuizAttempt {
+  id: string;
+  userId: string;
+  lessonId: string;
+  score: number;
+  answers: any;
+  completedAt: string;
+  lesson?: Partial<BACLesson>;
+}
+
+export interface QuizAttemptFeedback {
+  questionId: string;
+  question: string;
+  isCorrect: boolean;
+  correctOptionIds: string[];
+  selectedOptionIds: string[];
+  explanation: string | null;
+  options: { id: string; label: string; isCorrect: boolean }[];
+}
+
+// ─────────────────────────────────────────────────────────
+// Gamification module
+// ─────────────────────────────────────────────────────────
+
+export interface Badge {
+  id: string;
+  nameFr: string;
+  description: string;
+  icon: string;
+  createdAt: string;
+}
+
+export interface UserBadge {
+  id: string;
+  userId: string;
+  badgeId: string;
+  unlockedAt: string;
+  badge?: Badge;
+}
+
+export interface LeaderboardEntry {
+  id: string;
+  name: string;
+  xp: number;
+  currentStreak: number;
+  rank: number;
+}
+
+export interface QuizAttemptResult {
+  attemptId: string;
+  score: number;
+  scorePercent: number;
+  correctCount: number;
+  totalCount: number;
+  passed: boolean;
+  resurface: boolean;
+  resurfaceAt: string | null;
+  feedback: QuizAttemptFeedback[];
 }
 
 export interface Page<T = any> {
@@ -124,6 +226,19 @@ export interface User {
   email?: string;
   image?: string;
   headline?: string;
+  subscriptionTier: string;
+  language: string;
+  banned: boolean;
+  educationLevel?: string;
+  grade?: number;
+  universityYear?: number;
+  stream?: string;
+  
+  // Gamification
+  xp: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastStreakAt?: string;
   expiredAt: number;
 }
 

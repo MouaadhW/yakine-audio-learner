@@ -1,0 +1,110 @@
+name: EAS Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  eas-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+      - name: Configure Expo credentials
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          echo "EXPO_TOKEN is set"
+      - name: Install sentry-cli
+        if: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: npm install -g @sentry/cli
+      - name: Create Sentry release (mobile)
+        if: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT_MOBILE: ${{ secrets.SENTRY_PROJECT_MOBILE }}
+        run: |
+          # Use tag name or short SHA when not tagged
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            RELEASE=${GITHUB_REF#refs/tags/}
+          else
+            RELEASE=$(echo $GITHUB_SHA | cut -c1-7)
+          fi
+          echo "SENTRY_RELEASE=$RELEASE" >> $GITHUB_ENV
+          sentry-cli releases --org $SENTRY_ORG new $RELEASE || true
+      - name: Install dependencies
+        run: |
+          cd frontend || true
+          # repo root uses expo in package.json
+          npm ci
+      - name: Run EAS build for Android (managed)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform android --non-interactive --profile preview
+      - name: Upload mobile sourcemaps (manual)
+        if: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_RELEASE: ${{ env.SENTRY_RELEASE }}
+        run: |
+          set -euo pipefail
+          echo "Attempting to find EAS build artifacts and upload sourcemaps"
+          # Query recent builds for android and ios and attempt to download artifacts if available
+          # Requires EXPO_TOKEN in the environment
+          if command -v eas >/dev/null 2>&1; then
+            for platform in android ios; do
+              echo "Checking platform: $platform"
+              builds=$(eas build:list --platform $platform --status finished --limit 5 --json || echo "[]")
+              url=$(echo "$builds" | jq -r '.[0].artifacts.buildUrl // empty') || true
+              if [ -n "$url" ]; then
+                echo "Found artifact for $platform: $url"
+                out="artifact-${platform}.zip"
+                curl -L --fail -o "$out" "$url" || true
+                if [ -f "$out" ]; then
+                  echo "Downloaded $out, attempting to extract sourcemaps"
+                  mkdir -p eas-artifacts && unzip -o "$out" -d eas-artifacts || true
+                  # Upload any found sourcemaps directory
+                  if [ -d eas-artifacts/sourcemaps ]; then
+                    sentry-cli releases --org $SENTRY_ORG files $SENTRY_RELEASE upload-sourcemaps eas-artifacts/sourcemaps --rewrite || true
+                  else
+                    # Try to find map files recursively
+                    maps=$(find eas-artifacts -type f -name "*.map" -print | head -n 1 || true)
+                    if [ -n "$maps" ]; then
+                      sentry-cli releases --org $SENTRY_ORG files $SENTRY_RELEASE upload-sourcemaps $(dirname "$maps") --rewrite || true
+                    else
+                      echo "No sourcemaps found inside artifact for $platform"
+                    fi
+                  fi
+                fi
+              else
+                echo "No finished artifacts found for $platform via eas CLI"
+              fi
+            done
+          else
+            echo "eas CLI not available; skipping automatic sourcemap download"
+          fi
+
+      - name: Finalize Sentry release (mobile)
+        if: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT_MOBILE: ${{ secrets.SENTRY_PROJECT_MOBILE }}
+        run: |
+          sentry-cli releases --org $SENTRY_ORG finalize $SENTRY_RELEASE || true
+      - name: Run EAS build for iOS (managed)
+        if: success() && github.event_name != 'pull_request'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform ios --non-interactive --profile preview

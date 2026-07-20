@@ -1,0 +1,44 @@
+name: Sentry Release - Backend
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release-backend:
+    runs-on: ubuntu-latest
+    env:
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT_BACKEND: ${{ secrets.SENTRY_PROJECT_BACKEND }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+      - name: Build backend
+        run: |
+          cd backend
+          npm run build
+      - name: Install sentry-cli
+        run: npm install -g @sentry/cli
+      - name: Create Sentry release
+        id: create_release
+        run: |
+          RELEASE=${GITHUB_REF#refs/tags/}
+          echo "release=$RELEASE" >> $GITHUB_OUTPUT
+          sentry-cli releases --org $SENTRY_ORG new $RELEASE
+      - name: Upload backend sourcemaps
+        run: |
+          RELEASE=${{ steps.create_release.outputs.release }}
+          sentry-cli releases --org $SENTRY_ORG --project $SENTRY_PROJECT_BACKEND files $RELEASE upload-sourcemaps backend/dist --rewrite --strip-prefix backend --validate
+      - name: Finalize Sentry release
+        run: |
+          RELEASE=${{ steps.create_release.outputs.release }}
+          sentry-cli releases --org $SENTRY_ORG finalize $RELEASE

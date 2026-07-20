@@ -2,6 +2,8 @@ import type { Prisma } from '@prisma/client';
 import { env } from '../config/env';
 import { prisma } from './prisma';
 import { uploadBufferToStorage } from './storageUpload';
+import { audioGenerationQueue } from './queue';
+import { trace, propagation, context as otelContext } from '@opentelemetry/api';
 
 type ComposerLanguage = 'EN' | 'FR' | 'AR';
 
@@ -137,32 +139,43 @@ async function markJobFailed(jobId: string, message: string) {
   });
 }
 
-export async function processAudioGenerationJob(jobId: string) {
-  const job = await prismaClient.audioGenerationJob.findUnique({
-    where: { id: jobId },
-    include: { lesson: true },
-  });
+export async function processAudioGenerationJob(jobId: string, otelCarrier?: Record<string, string>) {
+  const tracer = trace.getTracer('teacher-composer');
+  // Extract incoming context (if provided) so worker traces are linked to the originating request
+  const parentCtx = otelCarrier ? propagation.extract(otelContext.active(), otelCarrier) : undefined;
 
-  if (!job) {
-    throw new Error('Audio generation job not found');
-  }
+  return await tracer.startActiveSpan(
+    'processAudioGenerationJob',
+    undefined,
+    parentCtx || undefined,
+    async span => {
+      span.setAttribute('audioGenerationJob.id', jobId);
+      try {
+        const job = await prismaClient.audioGenerationJob.findUnique({
+          where: { id: jobId },
+          include: { lesson: true },
+        });
+      if (!job) {
+        throw new Error('Audio generation job not found');
+      }
 
-  if (job.status === 'PROCESSING' || job.status === 'COMPLETED' || job.status === 'CANCELED') {
-    return job;
-  }
+      if (job.status === 'PROCESSING' || job.status === 'COMPLETED' || job.status === 'CANCELED') {
+        span.end();
+        return job;
+      }
 
-  await prismaClient.audioGenerationJob.update({
-    where: { id: job.id },
-    data: {
-      status: 'PROCESSING',
-      startedAt: new Date(),
-      attemptCount: { increment: 1 },
-      errorMessage: null,
-    },
-  });
+      await prismaClient.audioGenerationJob.update({
+        where: { id: job.id },
+        data: {
+          status: 'PROCESSING',
+          startedAt: new Date(),
+          attemptCount: { increment: 1 },
+          errorMessage: null,
+        },
+      });
 
-  try {
-    const languages = parseRequestedLanguages(job.requestedLanguages);
+      try {
+        const languages = parseRequestedLanguages(job.requestedLanguages);
     const voiceSelection = parseVoiceSelection(job.voiceSelection);
 
     const lessonUpdate: Record<string, unknown> = {
@@ -236,21 +249,32 @@ export async function processAudioGenerationJob(jobId: string) {
       data: lessonUpdate as Prisma.LessonUpdateInput,
     });
 
-    const completed = await prismaClient.audioGenerationJob.update({
-      where: { id: job.id },
-      data: {
-        status: 'COMPLETED',
-        completedAt: new Date(),
-        errorMessage: null,
-      },
-    });
+        const completed = await prismaClient.audioGenerationJob.update({
+          where: { id: job.id },
+          data: {
+            status: 'COMPLETED',
+            completedAt: new Date(),
+            errorMessage: null,
+          },
+        });
 
-    return completed;
-  } catch (error) {
-    const message = safeErrorMessage(error);
-    await markJobFailed(job.id, message);
-    throw error;
-  }
+        span.setAttribute('audioGenerationJob.status', 'COMPLETED');
+        span.end();
+        return completed;
+      } catch (error) {
+        const message = safeErrorMessage(error);
+        await markJobFailed(job.id, message);
+        span.recordException(error as Error);
+        span.setAttribute('audioGenerationJob.status', 'FAILED');
+        span.end();
+        throw error;
+      }
+    } catch (err) {
+      span.recordException(err as Error);
+      span.end();
+      throw err;
+    }
+  });
 }
 
 export async function enqueueAudioGenerationJob(params: {
@@ -259,24 +283,54 @@ export async function enqueueAudioGenerationJob(params: {
   languages: ComposerLanguage[];
   voiceSelection?: Partial<Record<ComposerLanguage, string>>;
 }) {
-  const job = await prismaClient.audioGenerationJob.create({
-    data: {
-      lessonId: params.lessonId,
-      teacherId: params.teacherId,
-      provider: 'ELEVENLABS',
-      status: 'QUEUED',
-      requestedLanguages: params.languages,
-      voiceSelection: params.voiceSelection || {},
-    },
-  });
+  const tracer = trace.getTracer('teacher-composer');
+  return await tracer.startActiveSpan('enqueueAudioGenerationJob', async span => {
+    span.setAttribute('lessonId', params.lessonId);
+    span.setAttribute('teacherId', params.teacherId);
+    span.setAttribute('languages', params.languages.join(','));
 
-  queueMicrotask(() => {
-    void processAudioGenerationJob(job.id).catch(err => {
-      console.error('Audio generation failed', job.id, err);
+    const job = await prismaClient.audioGenerationJob.create({
+      data: {
+        lessonId: params.lessonId,
+        teacherId: params.teacherId,
+        provider: 'ELEVENLABS',
+        status: 'QUEUED',
+        requestedLanguages: params.languages,
+        voiceSelection: params.voiceSelection || {},
+      },
     });
-  });
 
-  return job;
+    // Inject current trace context into the job data so the worker can continue the trace
+    const carrier: Record<string, string> = {};
+    try {
+      propagation.inject(otelContext.active(), carrier);
+    } catch (e) {
+      // best-effort
+    }
+
+    await audioGenerationQueue.add(
+      'generate',
+      { jobId: job.id, otel: carrier },
+      { attempts: 3, backoff: { type: 'exponential', delay: 2000 } }
+    );
+
+    // Persist traceId in DB for quick correlation between DB records and traces
+    try {
+      const spanCtx = trace.getSpan(otelContext.active())?.spanContext();
+      if (spanCtx?.traceId) {
+        await prismaClient.audioGenerationJob.update({
+          where: { id: job.id },
+          data: { traceId: spanCtx.traceId },
+        });
+      }
+    } catch (e) {
+      // best effort
+    }
+
+    span.setAttribute('audioGenerationJob.id', job.id);
+    span.end();
+    return job;
+  });
 }
 
 export async function retryAudioGenerationJob(jobId: string) {
@@ -290,11 +344,8 @@ export async function retryAudioGenerationJob(jobId: string) {
     },
   });
 
-  queueMicrotask(() => {
-    void processAudioGenerationJob(job.id).catch(err => {
-      console.error('Audio generation retry failed', job.id, err);
-    });
-  });
+  // Enqueue to BullMQ so retries go through the same queueing and backoff logic
+  await audioGenerationQueue.add('generate', { jobId: job.id }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
 
   return job;
 }

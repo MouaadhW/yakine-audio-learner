@@ -28,6 +28,11 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ContentManagement: undefined;
   TeacherAudioComposer: { chapterId?: string } | undefined;
+  QuizScreen: { lesson: BACLesson; quizId: string };
+  QuizResultScreen: { result: any; lesson: BACLesson };
+  AdminQuizEditor: { lessonId: string; title: string };
+  Leaderboard: undefined;
+  ParentDashboard: undefined;
 };
 
 export type BottomTabParamList = {

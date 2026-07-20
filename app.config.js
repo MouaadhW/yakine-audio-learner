@@ -210,6 +210,8 @@ module.exports = {
     extra: {
       privacyPolicyUrl: PRIVACY_POLICY_URL,
       supportUrl: SUPPORT_URL,
+      // Sentry DSN — set this in your CI or production env to enable crash reporting
+      SENTRY_DSN: process.env.SENTRY_DSN || '',
       // projectId must be the EAS UUID. Omitted (not faked) until EAS_PROJECT_ID
       // is set, so `eas` can prompt/link correctly instead of failing on a slug.
       ...(EAS_PROJECT_ID && { eas: { projectId: EAS_PROJECT_ID } }),

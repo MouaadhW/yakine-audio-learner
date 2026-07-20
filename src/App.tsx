@@ -7,6 +7,9 @@ import {
   onlineManager,
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { View, Text } from 'react-native';
+import { initSentry } from './lib/sentry';
+import Sentry from '@sentry/react-native';
 import { AppState, AppStateStatus } from 'react-native';
 import {
   SafeAreaProvider,
@@ -18,6 +21,7 @@ import MainNavigation from './MainNavigation';
 import { AudioProvider } from './contexts/AudioContext';
 import { ApiError } from './lib/errors';
 import { store } from './lib/store';
+import { registerForPushNotificationsAsync } from './lib/pushClient';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -42,6 +46,8 @@ const queryClient = new QueryClient({
 });
 
 const App = () => {
+  // Initialize Sentry early in app lifecycle
+  initSentry();
   useEffect(() => {
     let appState = AppState.currentState;
 
@@ -77,12 +83,19 @@ const App = () => {
     };
   }, []);
 
+  // Register push token when app starts (best-effort)
+  useEffect(() => {
+    void registerForPushNotificationsAsync();
+  }, []);
+
   return (
     <Provider store={store}>
       <SafeAreaProvider initialMetrics={initialWindowMetrics}>
         <QueryClientProvider client={queryClient}>
           <AudioProvider>
-            <MainNavigation />
+            <Sentry.ErrorBoundary fallback={<View style={{flex:1,justifyContent:'center',alignItems:'center'}}><Text>Unexpected error occurred</Text></View>}>
+              <MainNavigation />
+            </Sentry.ErrorBoundary>
           </AudioProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

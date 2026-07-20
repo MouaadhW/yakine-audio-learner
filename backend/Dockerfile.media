@@ -1,0 +1,29 @@
+# Multi-stage build: build TypeScript in a builder image, then create a smaller runtime image
+FROM node:20-bullseye as builder
+
+# Install build deps and ffmpeg for local build (ffmpeg not required at build time but keep for parity)
+RUN apt-get update && apt-get install -y ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --no-fund
+
+# Copy source and build
+COPY . .
+RUN npm run build
+
+FROM node:20-bullseye-slim as runtime
+RUN apt-get update && apt-get install -y ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+
+# Copy production dependencies
+COPY package.json package-lock.json* ./
+RUN npm ci --production --no-audit --no-fund
+
+# Copy built artifacts
+COPY --from=builder /app/dist ./dist
+
+ENV NODE_ENV=production
+
+# Run the compiled media worker
+CMD ["node", "dist/worker/mediaWorker.js"]

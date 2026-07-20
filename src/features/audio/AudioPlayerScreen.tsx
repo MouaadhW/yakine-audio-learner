@@ -25,6 +25,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { QuizApi } from '@/lib/services/QuizApi';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AudioPlayer'>;
 type PlayerLanguage = 'EN' | 'FR' | 'AR';
@@ -100,7 +101,7 @@ const pickInitialLanguage = (lesson: BACLesson, appLanguage: string): PlayerLang
 const escapeRegExp = (value: string): string =>
   value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const AudioPlayerScreen = ({ route }: Props) => {
+const AudioPlayerScreen = ({ route, navigation }: Props) => {
   const { lesson } = route.params;
   const { colors } = useAppSelector(selectTheme);
   const { i18n } = useTranslation();
@@ -141,6 +142,24 @@ const AudioPlayerScreen = ({ route }: Props) => {
   const [searchQuery, setSearchQuery] = useState('');
   const tabAnim = useRef(new Animated.Value(0)).current;
   const [activeTab, setActiveTab] = useState<'player' | 'script'>('player');
+  const [hasQuiz, setHasQuiz] = useState<boolean>(false);
+  const hasAutoPopped = useRef(false);
+
+  useEffect(() => {
+    // Check if a quiz exists for this lesson
+    const checkQuiz = async () => {
+      const q = await QuizApi.getQuizForLesson(lesson.id);
+      setHasQuiz(!!q && q.questions.length > 0);
+    };
+    checkQuiz();
+  }, [lesson.id]);
+
+  useEffect(() => {
+    if (duration > 0 && position >= duration - 1 && hasQuiz && !hasAutoPopped.current) {
+      hasAutoPopped.current = true;
+      navigation.navigate('QuizScreen', { lesson, quizId: lesson.id });
+    }
+  }, [position, duration, hasQuiz, lesson, navigation]);
 
   const script = useMemo(() => {
     const primary = getScriptForLanguage(lesson, activeLanguage).trim();
@@ -404,6 +423,15 @@ const AudioPlayerScreen = ({ route }: Props) => {
               ]}
             />
           </View>
+
+          {hasQuiz && (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('QuizScreen', { lesson, quizId: lesson.id })}
+              style={[styles.quizBtn, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}
+            >
+              <Text style={[styles.quizBtnText, { color: colors.primary }]}>Test Yourself</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -485,8 +513,23 @@ const styles = StyleSheet.create({
   tabIndicator: { height: 3, width: '60%', borderRadius: 2, marginTop: 4 },
   playerSection: { flex: 1, padding: 24, alignItems: 'center', gap: 20 },
   trackInfo: { alignItems: 'center', gap: 6 },
-  trackTitle: { fontSize: 20, fontWeight: '700', textAlign: 'center' },
+  trackTitle: {
+    textAlign: 'center',
+    fontWeight: '700',
+    fontSize: 16,
+  },
   teacherName: { fontSize: 14 },
+  quizBtn: {
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    borderWidth: 1,
+  },
+  quizBtnText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
   languageRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

@@ -118,6 +118,8 @@ const LessonListScreen = ({ route, navigation }: Props) => {
           return {
             ...lesson,
             completed: progress?.completed ?? false,
+            resurface: progress?.resurface ?? false,
+            resurfaceAt: progress?.resurfaceAt,
             downloadedPath:
               metadata?.status === 'downloaded' ? metadata.localPath : undefined,
             downloadStatus: metadata?.status ?? 'not_downloaded',
@@ -343,6 +345,11 @@ const LessonListScreen = ({ route, navigation }: Props) => {
           </Text>
           {locked ? (
             <Text style={[styles.premiumBadge, { color: '#a855f7' }]}>Premium</Text>
+          ) : null}
+          {item.resurface ? (
+            <View style={{ backgroundColor: colors.primary + '20', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginTop: 4 }}>
+              <Text style={{ fontSize: 12, color: colors.primary, fontWeight: 'bold' }}>🔁 Review Suggested</Text>
+            </View>
           ) : null}
           <Text style={[styles.meta, { color: colors.muted }]}>
             🎙️ {item.teacherName} • ⏱️ {formatDuration(item.duration)}

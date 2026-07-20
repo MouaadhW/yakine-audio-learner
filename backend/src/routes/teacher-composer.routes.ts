@@ -1,5 +1,7 @@
 import { Request, Response, Router } from 'express';
 import multer from 'multer';
+import os from 'os';
+import fsp from 'fs/promises';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
@@ -8,10 +10,7 @@ import { extractTranscriptFromUpload } from '../lib/transcriptParser';
 import { enqueueAudioGenerationJob, retryAudioGenerationJob } from '../lib/teacherComposer';
 import { env } from '../config/env';
 
-const transcriptUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-});
+const transcriptUpload = multer({ dest: os.tmpdir(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const languageSchema = z.enum(['EN', 'FR', 'AR']);
 
@@ -100,12 +99,13 @@ function getComposerSetupError(): string | null {
 }
 
 teacherComposerRouter.post('/transcripts/upload', transcriptUpload.single('file'), async (req, res, next) => {
+  const file = req.file;
   try {
-    if (!req.file) {
+    if (!file) {
       return res.status(400).json({ message: 'No file provided' });
     }
 
-    const text = await extractTranscriptFromUpload(req.file);
+    const text = await extractTranscriptFromUpload(file);
 
     if (!text) {
       return res.status(400).json({ message: 'Transcript file did not contain readable text' });
@@ -114,11 +114,18 @@ teacherComposerRouter.post('/transcripts/upload', transcriptUpload.single('file'
     return res.status(201).json({
       text,
       characterCount: text.length,
-      filename: req.file.originalname,
-      mimeType: req.file.mimetype,
+      filename: file.originalname,
+      mimeType: file.mimetype,
     });
   } catch (error) {
     return next(error);
+  } finally {
+    // cleanup temp file if present
+    try {
+      if ((file as any).path) await fsp.unlink((file as any).path);
+    } catch (e) {
+      // ignore
+    }
   }
 });
 
