@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SearchIcon } from 'lucide-react-native';
@@ -191,7 +192,7 @@ const styles = StyleSheet.create({
   sub: { fontSize: 12, paddingHorizontal: 16, marginTop: 4 },
   hint: { fontSize: 12, paddingHorizontal: 16, marginTop: 10, lineHeight: 18 },
   searchBar: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     margin: 16,
     marginBottom: 0,
@@ -202,7 +203,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, marginLeft: 8, fontSize: 14, paddingVertical: 4 },
   row: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,

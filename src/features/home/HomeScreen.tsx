@@ -40,6 +40,7 @@ import {
   TouchableWithoutFeedback,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { selectAuthUser } from '@/features/auth/authSlice';
 import { selectTheme } from '../themeSlice';
 
@@ -66,7 +67,7 @@ const Heading = ({ title, seeAll }: HeadingProps) => {
   const { t } = useTranslation();
 
   return (
-    <View style={styles.headingContainer}>
+    <View style={[styles.headingContainer, { flexDirection: dirRow() }] }>
       <View style={{ flex: 1 }}>
         <Text
           numberOfLines={1}
@@ -246,11 +247,11 @@ const HomeScreen = () => {
           {isFr ? item.titleFr : item.titleEn}
         </Text>
         {locked ? (
-          <View style={homeStyles.premiumPill}>
+          <View style={[homeStyles.premiumPill, { alignSelf: dirRow() === 'row' ? 'flex-start' : 'flex-end' }]}>
             <Text style={homeStyles.premiumPillText}>Premium</Text>
           </View>
         ) : null}
-        <View style={homeStyles.lessonFooter}>
+        <View style={[homeStyles.lessonFooter, { flexDirection: dirRow() }]}>
           <ClockIcon size={12} color={colors.muted} />
           <Text style={[homeStyles.lessonDuration, { color: colors.muted }]}>
             {formatDuration(item.duration)}
@@ -284,7 +285,7 @@ const HomeScreen = () => {
         }>
         <View style={[themeStyle, styles.container]}>
           {gamificationStats && (
-            <View style={styles.gamificationHeader}>
+            <View style={[styles.gamificationHeader, { flexDirection: dirRow() }]}>
               <TouchableOpacity style={styles.gamificationBadge} onPress={() => rootNavigation.navigate('Leaderboard')}>
                 <Text style={styles.gamificationIcon}>🔥</Text>
                 <Text style={[styles.gamificationText, { color: colors.text }]}>{gamificationStats.currentStreak} Streak</Text>
@@ -318,7 +319,7 @@ const HomeScreen = () => {
                   borderRadius: 12,
                   padding: 12,
                   marginTop: 10,
-                  flexDirection: 'row',
+                  flexDirection: dirRow(),
                   alignItems: 'flex-start',
                   gap: 10,
                 }}>
@@ -353,7 +354,7 @@ const HomeScreen = () => {
 
           <TouchableWithoutFeedback
             onPress={() => rootNavigation.navigate('SubjectList')}>
-            <View style={{ ...styles.searchContainer, backgroundColor: colors.inputBackground }}>
+            <View style={[styles.searchContainer, { backgroundColor: colors.inputBackground, flexDirection: dirRow() }]}>
               <SearchIcon color={colors.muted} />
               <TextInput
                 style={{ ...styles.searchInput, color: colors.text }}
@@ -370,7 +371,7 @@ const HomeScreen = () => {
           {/* ─── Subjects (Categories) ─── */}
           <Heading title={t('categories')} seeAll={() => rootNavigation.navigate('SubjectList')} />
           <Spacer orientation="vertical" spacing={12} />
-          <View style={styles.categoryContainer}>
+          <View style={[styles.categoryContainer, { flexDirection: dirRow() }] }>
             {categoryChips.map(s => (
               <Chip
                 key={s.id}
@@ -458,7 +459,7 @@ const styles = StyleSheet.create({
   },
   headingContainer: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'baseline',
     justifyContent: 'space-between',
     gap: 10,
@@ -472,7 +473,7 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.semiBold,
   },
   searchContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 8,
     borderRadius: 23,
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
   },
   categoryContainer: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     flexWrap: 'wrap',
     gap: 10,
   },
@@ -526,17 +527,17 @@ const homeStyles = StyleSheet.create({
     backgroundColor: '#a855f728',
   },
   premiumPillText: { fontSize: 10, fontWeight: '700', color: '#a855f7', letterSpacing: 0.3 },
-  lessonFooter: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  lessonFooter: { flexDirection: dirRow(), alignItems: 'center', gap: 4 },
   lessonDuration: { fontSize: 12 },
   lessonTeacher: { fontSize: 11, marginTop: 2 },
   gamificationHeader: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     justifyContent: 'flex-end',
     gap: 12,
     marginBottom: 8,
   },
   gamificationBadge: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     backgroundColor: '#0000000A',
     paddingHorizontal: 12,

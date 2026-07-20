@@ -1,5 +1,6 @@
 import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
+import { dirRow } from '@/lib/rtl';
 import { PropsWithChildren, useMemo } from 'react';
 import { StyleSheet, TouchableHighlight, View } from 'react-native';
 import { DefaultStyles } from '../styles';
@@ -42,6 +43,7 @@ export const Button = ({
         style={{
           ...styles.container,
           backgroundColor: backgroundColor,
+          flexDirection: dirRow(),
         }}>
         {children}
       </View>
@@ -77,7 +79,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     paddingHorizontal: 16,
     height: 46,
     borderRadius: DefaultStyles.values.borderRadius,

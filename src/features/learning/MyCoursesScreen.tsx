@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { useAppSelector } from '@/lib/hooks';
 import { useTranslation } from 'react-i18next';
 import { selectTheme } from '../themeSlice';
@@ -245,7 +246,7 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   cardRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 14,
   },
   playIcon: {
@@ -272,7 +273,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   progressRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 8,
     marginTop: 6,

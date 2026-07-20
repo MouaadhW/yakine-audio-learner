@@ -5,6 +5,7 @@ import { prisma } from './lib/prisma';
 import { audioGenerationQueue } from './lib/queue';
 import http from 'http';
 import { initSocket } from './socket';
+import parentDigest from './lib/parentDigest';
 
 const port = env.PORT;
 
@@ -40,4 +41,10 @@ initSocket(server);
 server.listen(port, '0.0.0.0', () => {
   console.log(`Backend API running at http://0.0.0.0:${port}`);
   void recoverOrphanedTtsJobs();
+  // Schedule weekly parent digests if enabled
+  try {
+    parentDigest.scheduleWeeklyDigests();
+  } catch (e) {
+    console.warn('Failed to schedule parent digests', e);
+  }
 });

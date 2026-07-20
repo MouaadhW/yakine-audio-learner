@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   BellIcon,
@@ -237,14 +238,14 @@ const AnnouncementsScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   card: { borderRadius: 12, padding: 14, borderWidth: 1 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardHeader: { flexDirection: dirRow(), alignItems: 'center', gap: 8 },
   typeDot: { width: 10, height: 10, borderRadius: 5 },
   title: { fontSize: 15, fontWeight: '600' },
   statusLabel: { fontSize: 11, fontWeight: '600' },
   body: { fontSize: 13, marginTop: 8, lineHeight: 18 },
-  actionRow: { flexDirection: 'row', gap: 8, marginTop: 10, justifyContent: 'flex-end' },
+  actionRow: { flexDirection: dirRow(), gap: 8, marginTop: 10, justifyContent: 'flex-end' },
   actionBtn: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 6,

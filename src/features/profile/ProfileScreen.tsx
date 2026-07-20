@@ -17,6 +17,7 @@ import { useAppDispatch, useAppSelector } from '@/lib/hooks';
 import { selectTheme, setDarkMode, setLightMode } from '../themeSlice';
 import { changeLanguage } from '@/lib/i18n';
 import { useTranslation } from 'react-i18next';
+import { textAlign, dirRow } from '@/lib/rtl';
 import { logout, updateUser, selectAuthUser } from '../auth/authSlice';
 import { DefaultStyles } from '@/components/styles';
 import { makeApiRequest } from '@/lib/makeApiRequest';
@@ -218,7 +219,7 @@ const ProfileScreen = () => {
             borderBottomColor: colors.border,
           },
         ]}>
-        <View style={styles.avatarSection}>
+        <View style={[styles.avatarSection, { flexDirection: dirRow() }]}>
           <View style={styles.avatarWrapper}>
             <Avatar
               name={user?.name ?? 'U'}
@@ -227,7 +228,7 @@ const ProfileScreen = () => {
             <TouchableOpacity
               style={[
                 styles.editAvatarBadge,
-                { backgroundColor: colors.primary },
+                { backgroundColor: colors.primary, right: dirRow() === 'row' ? -2 : undefined, left: dirRow() === 'row' ? undefined : -2 },
               ]}
               onPress={openEditModal}
               activeOpacity={0.7}>
@@ -255,7 +256,7 @@ const ProfileScreen = () => {
             <View
               style={[
                 styles.roleBadge,
-                { backgroundColor: roleBadge.bg },
+                { backgroundColor: roleBadge.bg, alignSelf: dirRow() === 'row' ? 'flex-start' : 'flex-end' },
               ]}>
               <Text style={[styles.roleBadgeText, { color: roleBadge.color }]}>
                 {roleBadge.label}
@@ -272,6 +273,7 @@ const ProfileScreen = () => {
                         : colors.border + '44',
                     borderColor:
                       user.subscriptionTier === 'PREMIUM' ? '#a855f755' : colors.border,
+                    alignSelf: dirRow() === 'row' ? 'flex-start' : 'flex-end',
                   },
                 ]}>
                 <Text
@@ -294,7 +296,7 @@ const ProfileScreen = () => {
         <TouchableOpacity
           style={[
             styles.editProfileButton,
-            { backgroundColor: colors.primary + '14', borderColor: colors.primary + '30' },
+            { backgroundColor: colors.primary + '14', borderColor: colors.primary + '30', flexDirection: dirRow() },
           ]}
           activeOpacity={0.7}
           onPress={openEditModal}>
@@ -330,7 +332,7 @@ const ProfileScreen = () => {
       )}
 
       {user && user.emailVerified === false && (
-        <View style={[styles.verifyBanner, { backgroundColor: '#f59e0b14', borderColor: '#f59e0b44' }]}>
+        <View style={[styles.verifyBanner, { backgroundColor: '#f59e0b14', borderColor: '#f59e0b44', flexDirection: dirRow() }]}> 
           <View style={{ flex: 1 }}>
             <Text style={[styles.verifyBannerTitle, { color: colors.text }]}>
               {selectedLanguage === 'fr' ? 'Email non vérifié' : 'Email not verified'}
@@ -606,7 +608,7 @@ const ProfileScreen = () => {
               {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
-                flexDirection: 'row',
+                flexDirection: dirRow(),
                 alignItems: 'center',
                 paddingHorizontal: 14,
                 paddingVertical: 14,
@@ -878,7 +880,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
   },
   avatarSection: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 16,
   },
@@ -936,7 +938,7 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.semiBold,
   },
   editProfileButton: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -976,7 +978,7 @@ const styles = StyleSheet.create({
     padding: 14,
     borderRadius: 12,
     borderWidth: 1,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 12,
   },
@@ -1023,14 +1025,14 @@ const styles = StyleSheet.create({
 
   /* Settings Row */
   settingRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
   settingLeft: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 10,
   },
@@ -1052,16 +1054,16 @@ const styles = StyleSheet.create({
 
   /* Chips */
   chipRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 6,
   },
   chipWrap: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     flexWrap: 'wrap',
     gap: 6,
   },
   chip: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 12,
@@ -1075,7 +1077,7 @@ const styles = StyleSheet.create({
 
   /* Info Row */
   infoRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     paddingHorizontal: 14,
     paddingVertical: 14,
@@ -1096,7 +1098,7 @@ const styles = StyleSheet.create({
 
   /* Logout */
   logoutButton: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
@@ -1156,7 +1158,7 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.regular,
   },
   modalActions: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 10,
     marginTop: 24,
   },

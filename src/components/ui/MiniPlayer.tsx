@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, TouchableOpacity, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { Text } from './Text';
 import { useAppSelector } from '@/lib/hooks';
 import { selectTheme } from '@/features/themeSlice';
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
     height: 2,
   },
   content: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,

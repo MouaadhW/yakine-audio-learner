@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChartNoAxesColumnIncreasingIcon, ImageIcon, StarIcon } from 'lucide-react-native';
 import { Dimensions, StyleSheet, TouchableHighlight, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { DefaultStyles } from '../styles';
 import { Spacer } from '../ui/Spacer';
 import { Text } from '../ui/Text';
@@ -84,7 +85,7 @@ export const TopCourseItem = ({ value }: TopCourseItemProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     padding: 10,
     gap: 12,
     borderRadius: DefaultStyles.values.borderRadius,
@@ -112,12 +113,12 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.medium,
   },
   footerContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 10,
     alignItems: 'center',
   },
   footerItem: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 4,
     alignItems: 'center',
   },

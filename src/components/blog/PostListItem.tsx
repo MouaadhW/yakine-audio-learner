@@ -11,6 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { CalendarDaysIcon, EyeIcon, ImageIcon } from 'lucide-react-native';
 import { StyleSheet, TouchableHighlight, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { DefaultStyles } from '../styles';
 import { CustomImage } from '../ui/CustomImage';
 import { Spacer } from '../ui/Spacer';
@@ -87,7 +88,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     overflow: 'hidden',
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 14,
     paddingHorizontal: 16,
     paddingVertical: 20,
@@ -116,12 +117,12 @@ const styles = StyleSheet.create({
   },
   footerContainer: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 14,
     alignItems: 'center',
   },
   footerItem: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 4,
     alignItems: 'center',
   },

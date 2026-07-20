@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Text } from '@/components/ui/Text';
 import { Loading } from '@/components/ui/Loading';
@@ -311,7 +312,7 @@ const styles = StyleSheet.create({
   header: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
   subheader: { fontSize: 14, marginBottom: 16 },
   scopeCard: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     padding: 12,
     borderRadius: 10,
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
   },
   addTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12 },
   fieldLabel: { fontSize: 12, fontWeight: '600', marginTop: 10, marginBottom: 6 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chipRow: { flexDirection: dirRow(), flexWrap: 'wrap', gap: 6 },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 6,

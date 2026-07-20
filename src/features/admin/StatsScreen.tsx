@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { dirRow } from '@/lib/rtl';
 import {
   UsersIcon,
   BookOpenIcon,
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16 },
   sectionTitle: { fontSize: 17, fontWeight: '700', marginTop: 20, marginBottom: 12 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  grid: { flexDirection: dirRow(), flexWrap: 'wrap', gap: 10 },
   statCard: {
     width: '48%',
     borderRadius: 12,
@@ -207,13 +208,13 @@ const styles = StyleSheet.create({
   statLabel: { fontSize: 12, marginTop: 2 },
   roleCard: { borderRadius: 12, padding: 14, borderWidth: 1, gap: 12 },
   roleBarContainer: { gap: 4 },
-  roleBarHeader: { flexDirection: 'row', justifyContent: 'space-between' },
+  roleBarHeader: { flexDirection: dirRow(), justifyContent: 'space-between' },
   roleBarLabel: { fontSize: 13, fontWeight: '600' },
   roleBarCount: { fontSize: 12 },
   roleBarBg: { height: 8, borderRadius: 4, overflow: 'hidden' },
   roleBarFill: { height: '100%', borderRadius: 4 },
   subjectRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     padding: 12,
     borderRadius: 10,
@@ -223,7 +224,7 @@ const styles = StyleSheet.create({
   subjectName: { fontSize: 14, fontWeight: '600' },
   subjectMeta: { fontSize: 12, marginTop: 2 },
   recentUserRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     padding: 12,
     borderRadius: 10,

@@ -45,4 +45,44 @@ parentRouter.get('/stats/:studentId', async (req, res, next) => {
   }
 });
 
+// POST /api/parents/invite - create a link between parent and existing student (by id or email)
+parentRouter.post('/invite', async (req, res, next) => {
+  try {
+    const parentId = req.auth!.userId;
+    const { studentId, email } = req.body as { studentId?: string; email?: string };
+    let student;
+    if (studentId) {
+      student = await prisma.user.findUnique({ where: { id: studentId } });
+    } else if (email) {
+      student = await prisma.user.findUnique({ where: { email } });
+    } else {
+      return res.status(400).json({ message: 'studentId or email required' });
+    }
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    // Prevent duplicate link
+    const existing = await prisma.parentStudentLink.findUnique({ where: { parentId_studentId: { parentId, studentId: student.id } } });
+    if (existing) return res.status(200).json({ inviteCode: existing.inviteCode });
+
+    const inviteCode = Math.random().toString(36).slice(2, 10).toUpperCase();
+    const link = await prisma.parentStudentLink.create({ data: { parentId, studentId: student.id, inviteCode } });
+    return res.status(201).json({ inviteCode: link.inviteCode });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/parents/unlink - remove a parent-student link
+parentRouter.post('/unlink', async (req, res, next) => {
+  try {
+    const parentId = req.auth!.userId;
+    const { studentId } = req.body as { studentId: string };
+    if (!studentId) return res.status(400).json({ message: 'studentId required' });
+    await prisma.parentStudentLink.deleteMany({ where: { parentId, studentId } });
+    return res.json({ message: 'Unlinked' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default parentRouter;

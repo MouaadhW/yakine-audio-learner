@@ -1,5 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   UsersIcon,
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
   header: { fontSize: 24, fontWeight: '700', marginBottom: 4 },
   subheader: { fontSize: 14, marginBottom: 20 },
   card: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     padding: 16,
     borderRadius: 14,

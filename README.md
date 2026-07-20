@@ -44,6 +44,11 @@ yakine-audio-learner/
 
 ---
 
+## Checkpoints
+
+- RTL & Arabic localization snapshot: [docs/ROADMAP_CHECKPOINT_RTL.md](docs/ROADMAP_CHECKPOINT_RTL.md)
+
+
 ## 1 — Environment Variables
 
 ### App `.env` (project root)

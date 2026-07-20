@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, SafeAreaView, ActivityIndicator, ScrollView } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { Text } from '@/components/ui/Text';
 import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
@@ -207,7 +208,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   header: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   optionButton: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     padding: 16,
     borderRadius: 12,
@@ -268,7 +269,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   footer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,

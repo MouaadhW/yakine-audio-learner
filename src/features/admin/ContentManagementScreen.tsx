@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   PencilIcon,
@@ -392,7 +393,7 @@ const ContentManagementScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchBar: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     margin: 16,
     marginBottom: 10,
@@ -404,23 +405,23 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 15 },
   card: { borderRadius: 12, padding: 14, borderWidth: 1 },
-  cardContent: { flexDirection: 'row', gap: 10 },
+  cardContent: { flexDirection: dirRow(), gap: 10 },
   title: { fontSize: 15, fontWeight: '600' },
   subtitle: { fontSize: 13, marginTop: 2 },
-  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  metaRow: { flexDirection: dirRow(), flexWrap: 'wrap', gap: 6, marginTop: 6 },
   metaChip: { fontSize: 11, fontWeight: '600', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
   statusBadge: { fontSize: 11, fontWeight: '700', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, overflow: 'hidden' },
   teacherName: { fontSize: 12, marginTop: 4 },
   actionCol: { justifyContent: 'center', gap: 6 },
   actionBtn: { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-  pagination: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 16, paddingVertical: 16 },
+  pagination: { flexDirection: dirRow(), justifyContent: 'center', alignItems: 'center', gap: 16, paddingVertical: 16 },
   pageBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
   emptyContainer: { alignItems: 'center', marginTop: 60 },
   uploadFab: {
     position: 'absolute',
     bottom: 24,
     left: 24,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,

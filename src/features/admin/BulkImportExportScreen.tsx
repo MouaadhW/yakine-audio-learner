@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { DownloadIcon, UploadIcon } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 import { useAppSelector } from '@/lib/hooks';
@@ -166,7 +167,7 @@ const styles = StyleSheet.create({
   header: { fontSize: 22, fontWeight: '700', marginBottom: 8 },
   description: { fontSize: 14, lineHeight: 20, marginBottom: 20 },
   actionCard: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     padding: 16,
     borderRadius: 14,

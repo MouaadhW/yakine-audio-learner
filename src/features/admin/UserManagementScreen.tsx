@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   SearchIcon,
@@ -549,7 +550,7 @@ const UserManagementScreen = ({ navigation }: Props) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchBar: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     margin: 16,
     marginBottom: 8,
@@ -559,7 +560,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   searchInput: { flex: 1, marginLeft: 8, fontSize: 14, paddingVertical: 4 },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 6, alignItems: 'center', marginBottom: 4 },
+  filterRow: { flexDirection: dirRow(), paddingHorizontal: 16, gap: 6, alignItems: 'center', marginBottom: 4 },
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -568,34 +569,34 @@ const styles = StyleSheet.create({
   },
   totalBadge: { marginLeft: 'auto', fontSize: 12 },
   card: { borderRadius: 12, padding: 14, borderWidth: 1 },
-  cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  userInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 10 },
+  cardHeader: { flexDirection: dirRow(), alignItems: 'center', justifyContent: 'space-between' },
+  userInfo: { flexDirection: dirRow(), alignItems: 'center', flex: 1, gap: 10 },
   avatar: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
   userName: { fontSize: 15, fontWeight: '600' },
   userEmail: { fontSize: 12, marginTop: 2 },
   bannedBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  metaRow: { flexDirection: 'row', gap: 16, marginTop: 10 },
+  metaRow: { flexDirection: dirRow(), gap: 16, marginTop: 10 },
   meta: { fontSize: 11 },
   premiumRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: 10,
     paddingVertical: 4,
   },
   premiumLabel: { fontSize: 13, fontWeight: '600' },
-  roleRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
+  roleRow: { flexDirection: dirRow(), gap: 6, marginTop: 10 },
   roleChip: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 14, borderWidth: 1 },
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  actionRow: { flexDirection: dirRow(), gap: 10, marginTop: 12 },
   actionBtn: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
   },
   pagination: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
@@ -623,10 +624,10 @@ const styles = StyleSheet.create({
   lawModalTitle: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
   lawModalScroll: { maxHeight: 420 },
   lawModalLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
-  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chipWrap: { flexDirection: dirRow(), flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
   chipWide: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, maxWidth: '100%' },
-  lawModalActions: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  lawModalActions: { flexDirection: dirRow(), gap: 12, marginTop: 16 },
   lawModalBtn: {
     flex: 1,
     paddingVertical: 12,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { Text } from '@/components/ui/Text';
 import { useQuery } from '@tanstack/react-query';
 import { GamificationApi } from '@/lib/services/GamificationApi';
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   myStatsRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     justifyContent: 'space-between',
   },
   myStatBox: {
@@ -161,7 +162,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   badgesList: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     flexWrap: 'wrap',
     gap: 8,
   },
@@ -177,7 +178,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   leaderboardTitleRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 8,
     paddingHorizontal: 4,
@@ -187,7 +188,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   rankItem: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     padding: 12,
     borderRadius: 12,
@@ -218,7 +219,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   streakRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     marginTop: 4,
   },

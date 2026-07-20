@@ -19,6 +19,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { loginSuccess } from './authSlice';
 import {
   LAW_LEVELS,
@@ -383,6 +384,19 @@ const SignupScreen = ({ navigation }: Props) => {
             <TouchableOpacity
               style={[
                 styles.langChip,
+                i18n.language.startsWith('ar')
+                  ? { backgroundColor: colors.primary }
+                  : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+              ]}
+              onPress={() => void changeLanguage('ar')}
+              activeOpacity={0.8}>
+              <Text style={[styles.langChipText, { color: i18n.language.startsWith('ar') ? '#fff' : colors.text }]}>
+                AR
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.langChip,
                 i18n.language.startsWith('fr')
                   ? { backgroundColor: colors.primary }
                   : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
@@ -655,7 +669,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   langRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 8,
     marginBottom: 12,
     justifyContent: 'center',
@@ -714,7 +728,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'space-between',
   },
@@ -743,7 +757,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   footer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 16,

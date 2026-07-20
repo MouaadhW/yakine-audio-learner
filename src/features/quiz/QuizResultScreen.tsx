@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { Text } from '@/components/ui/Text';
 import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   feedbackResultRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     marginBottom: 4,
   },
@@ -153,12 +154,12 @@ const styles = StyleSheet.create({
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 12,
   },
   button: {
     flex: 1,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,

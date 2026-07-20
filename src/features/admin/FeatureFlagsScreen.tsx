@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { FlagIcon, PlusIcon, Trash2Icon } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
@@ -179,12 +180,12 @@ const FeatureFlagsScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   card: { borderRadius: 12, padding: 14, borderWidth: 1 },
-  cardRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cardRow: { flexDirection: dirRow(), alignItems: 'center', gap: 10 },
   flagIcon: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
   flagKey: { fontSize: 15, fontWeight: '600', fontFamily: 'monospace' },
   flagDesc: { fontSize: 12, marginTop: 3 },
   footerRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     justifyContent: 'space-between',
     alignItems: 'center',
     marginTop: 10,

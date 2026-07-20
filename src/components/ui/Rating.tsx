@@ -2,6 +2,7 @@ import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
 import { StarIcon } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 
 interface RatingProps {
   rating: number;
@@ -80,7 +81,7 @@ export const Rating = ({ rating }: RatingProps) => {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 1.5,
   },

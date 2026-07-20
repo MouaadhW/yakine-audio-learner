@@ -22,6 +22,7 @@ import { Text } from '@/components/ui/Text';
 import { selectTheme } from '@/features/themeSlice';
 import { selectAuthUser } from '@/features/auth/authSlice';
 import { useAppSelector } from '@/lib/hooks';
+import { dirRow } from '@/lib/rtl';
 import {
   attachTeacherComposerManualAudio,
   cancelTeacherComposerAiJob,
@@ -840,7 +841,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 16, fontWeight: '700' },
   label: { fontSize: 12, fontWeight: '600' },
-  rowWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  rowWrap: { flexDirection: dirRow(), flexWrap: 'wrap', gap: 8 },
   chip: {
     borderWidth: 1,
     borderRadius: 999,
@@ -867,7 +868,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 8,
   },
@@ -875,11 +876,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 8,
   },
-  recordingRow: { flexDirection: 'row', alignItems: 'center' },
+  recordingRow: { flexDirection: dirRow(), alignItems: 'center' },
   actionButtonText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   inlineInfo: { fontSize: 12 },
   publishButton: {
@@ -888,7 +889,7 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 8,
   },
   publishText: { color: '#fff', fontSize: 14, fontWeight: '700' },
@@ -901,7 +902,7 @@ const styles = StyleSheet.create({
   },
   jobTitle: { fontSize: 13, fontWeight: '700' },
   smallAction: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: 10,

@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { Text } from './Text';
 
 export interface FormField {
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   optionsRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     flexWrap: 'wrap',
     gap: 8,
   },
@@ -232,7 +233,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   actions: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 10,
     marginTop: 16,
     alignItems: 'center',

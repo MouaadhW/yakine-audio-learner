@@ -16,6 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { RootStackParamList } from '@/navigations';
 import { loginSuccess } from './authSlice';
 import { DefaultStyles } from '@/components/styles';
@@ -27,7 +28,7 @@ const LoginScreen = ({ navigation }: Props) => {
   const dispatch = useAppDispatch();
   const { i18n } = useTranslation();
   const { colors } = useAppSelector(selectTheme);
-  const isFrench = i18n.language !== 'en';
+  const isFrench = i18n.language.startsWith('fr');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -151,6 +152,19 @@ const LoginScreen = ({ navigation }: Props) => {
               activeOpacity={0.8}>
               <Text style={[styles.langChipText, { color: i18n.language.startsWith('en') ? '#fff' : colors.text }]}>
                 EN
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.langChip,
+                i18n.language.startsWith('ar')
+                  ? { backgroundColor: colors.primary }
+                  : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
+              ]}
+              onPress={() => void changeLanguage('ar')}
+              activeOpacity={0.8}>
+              <Text style={[styles.langChipText, { color: i18n.language.startsWith('ar') ? '#fff' : colors.text }]}>
+                AR
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -333,7 +347,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   langRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 8,
     marginBottom: 12,
     justifyContent: 'center',
@@ -397,7 +411,7 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.medium,
   },
   footer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 16,

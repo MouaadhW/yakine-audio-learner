@@ -22,6 +22,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { selectTheme } from '../themeSlice';
 
@@ -133,7 +134,7 @@ const PostDetailScreen = ({ navigation, route }: Props) => {
           <View style={styles.headingContainer}>
             <View
               style={{
-                flexDirection: 'row',
+                flexDirection: dirRow(),
                 height: avatarSize,
               }}>
               {data.authors?.map((a, i, ary) => {
@@ -220,7 +221,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   coverContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
   },
   cover: {
     flex: 1,
@@ -238,12 +239,12 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.regular,
   },
   headingContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 10,
     alignItems: 'center',
   },
   tagContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     flexWrap: 'wrap',
     gap: 10,
   },

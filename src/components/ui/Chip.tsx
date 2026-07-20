@@ -2,6 +2,7 @@ import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
 import { useMemo, type ReactNode } from 'react';
 import { StyleSheet, TouchableHighlight, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { DefaultStyles } from '../styles';
 import { Text } from './Text';
 
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     paddingHorizontal: 12,
     height: 36,
     borderRadius: 18,

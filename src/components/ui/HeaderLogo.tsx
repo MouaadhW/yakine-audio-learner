@@ -1,5 +1,6 @@
 import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
+import { dirRow } from '@/lib/rtl';
 import { HeaderTitleProps } from '@react-navigation/elements';
 import { StyleSheet, Text, View } from 'react-native';
 
@@ -7,7 +8,7 @@ export const HeaderLogo = (props: HeaderTitleProps) => {
   const { colors } = useAppSelector(selectTheme);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { flexDirection: dirRow() }]}>
       {/* <View
         style={{
           backgroundColor: colors.primary,
@@ -36,7 +37,6 @@ export const HeaderLogo = (props: HeaderTitleProps) => {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },

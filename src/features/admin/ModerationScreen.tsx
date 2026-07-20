@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircleIcon, XCircleIcon, ClockIcon } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
@@ -178,18 +179,18 @@ const ModerationScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  filterRow: { flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 6, flexWrap: 'wrap' },
+  filterRow: { flexDirection: dirRow(), paddingHorizontal: 16, paddingVertical: 12, gap: 6, flexWrap: 'wrap' },
   filterChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, borderWidth: 1 },
   card: { borderRadius: 12, padding: 14, borderWidth: 1 },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  cardHeader: { flexDirection: dirRow(), justifyContent: 'space-between', alignItems: 'flex-start' },
   title: { fontSize: 15, fontWeight: '600' },
   subtitle: { fontSize: 13, marginTop: 2 },
   statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   metaRow: { marginTop: 10, gap: 4 },
   meta: { fontSize: 12 },
-  actionRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  approveBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, flex: 1, justifyContent: 'center' },
-  rejectBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, flex: 1, justifyContent: 'center' },
+  actionRow: { flexDirection: dirRow(), gap: 10, marginTop: 12 },
+  approveBtn: { flexDirection: dirRow(), alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, flex: 1, justifyContent: 'center' },
+  rejectBtn: { flexDirection: dirRow(), alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, flex: 1, justifyContent: 'center' },
   emptyContainer: { alignItems: 'center', marginTop: 60, gap: 12 },
   emptyText: { fontSize: 14, textAlign: 'center' },
 });

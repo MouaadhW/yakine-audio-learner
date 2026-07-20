@@ -29,6 +29,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -307,7 +308,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   grid: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     rowGap: 12,
@@ -327,7 +328,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 15, fontWeight: '600', textAlign: 'center' },
   chapters: { fontSize: 12 },
   adminActions: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 8,
     marginTop: 4,
   },

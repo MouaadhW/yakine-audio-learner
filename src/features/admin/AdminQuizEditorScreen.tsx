@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { Text } from '@/components/ui/Text';
 import { selectTheme } from '@/features/themeSlice';
 import { useAppSelector } from '@/lib/hooks';
@@ -316,7 +317,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
@@ -324,9 +325,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontWeight: 'bold' },
   headerSubtitle: { fontSize: 13, marginTop: 2 },
-  headerActions: { flexDirection: 'row', gap: 10 },
+  headerActions: { flexDirection: dirRow(), gap: 10 },
   iconButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  saveButton: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 36, borderRadius: 18, gap: 6 },
+  saveButton: { flexDirection: dirRow(), alignItems: 'center', paddingHorizontal: 16, height: 36, borderRadius: 18, gap: 6 },
   saveButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
   content: { flex: 1 },
   contentContainer: { padding: 16 },
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
   },
-  questionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  questionHeader: { flexDirection: dirRow(), justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   questionLabel: { fontSize: 16, fontWeight: '600' },
   removeBtn: { padding: 4 },
   input: {
@@ -349,17 +350,17 @@ const styles = StyleSheet.create({
   },
   optionsSection: { marginTop: 16 },
   optionsLabel: { fontSize: 14, fontWeight: '600', marginBottom: 10 },
-  optionRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12, gap: 10 },
+  optionRow: { flexDirection: dirRow(), alignItems: 'flex-start', marginBottom: 12, gap: 10 },
   correctToggle: { width: 36, height: 36, borderRadius: 18, borderWidth: 1, justifyContent: 'center', alignItems: 'center', marginTop: 4 },
   checkbox: { width: 16, height: 16, borderRadius: 8, borderWidth: 1 },
   optionInputs: { flex: 1, gap: 6 },
   optionInput: { flex: 1 },
   explanationInput: { fontSize: 13, fontStyle: 'italic', paddingVertical: 8 },
   removeOptionBtn: { padding: 10, marginTop: 2 },
-  addOptionBtn: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', paddingVertical: 6, gap: 4 },
+  addOptionBtn: { flexDirection: dirRow(), alignItems: 'center', alignSelf: 'flex-start', paddingVertical: 6, gap: 4 },
   addOptionText: { fontWeight: '600', fontSize: 14 },
   addQuestionBtn: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     justifyContent: 'center',
     padding: 16,

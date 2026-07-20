@@ -21,6 +21,7 @@ import { PencilIcon, Trash2Icon } from 'lucide-react-native';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ChapterList'>;
 
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   cardContent: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
   },
   title: {
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   adminActions: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 6,
   },
   actionBtn: {

@@ -22,6 +22,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { selectTheme } from '../themeSlice';
 
@@ -231,13 +232,13 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.medium,
   },
   propsContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 10,
     alignItems: 'center',
     flexWrap: 'wrap',
   },
   propsItem: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 4,
     alignItems: 'center',
   },
@@ -247,7 +248,7 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.regular,
   },
   footerContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignContent: 'stretch',
     padding: 16,
     gap: 10,

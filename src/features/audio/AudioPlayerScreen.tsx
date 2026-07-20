@@ -24,6 +24,7 @@ import {
   View,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { dirRow, textAlign } from '@/lib/rtl';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { QuizApi } from '@/lib/services/QuizApi';
 
@@ -265,7 +266,7 @@ const AudioPlayerScreen = ({ route, navigation }: Props) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[styles.tabs, { borderBottomColor: colors.border }]}>
+      <View style={[styles.tabs, { borderBottomColor: colors.border, flexDirection: dirRow() }]}>
         {(['player', 'script'] as const).map(tab => (
           <TouchableOpacity
             key={tab}
@@ -307,7 +308,7 @@ const AudioPlayerScreen = ({ route, navigation }: Props) => {
               🎙️ {lesson.teacherName}
             </Text>
 
-            <View style={styles.languageRow}>
+            <View style={[styles.languageRow, { flexDirection: dirRow() }]}>
               {availableLanguages.map(language => (
                 <TouchableOpacity
                   key={language}
@@ -334,7 +335,7 @@ const AudioPlayerScreen = ({ route, navigation }: Props) => {
             </View>
           </View>
 
-          <View style={styles.sliderContainer}>
+            <View style={styles.sliderContainer}>
             <Slider
               style={styles.slider}
               minimumValue={0}
@@ -345,7 +346,7 @@ const AudioPlayerScreen = ({ route, navigation }: Props) => {
               maximumTrackTintColor={colors.border}
               thumbTintColor={colors.primary}
             />
-            <View style={styles.timeRow}>
+            <View style={[styles.timeRow, { flexDirection: dirRow() }]}>
               <Text style={[styles.timeText, { color: colors.muted }]}>
                 {formatTime(position)}
               </Text>
@@ -355,7 +356,7 @@ const AudioPlayerScreen = ({ route, navigation }: Props) => {
             </View>
           </View>
 
-          <View style={styles.controls}>
+          <View style={[styles.controls, { flexDirection: dirRow() }]}>
             <TouchableOpacity
               onPress={() => seekBy(-10)}
               style={styles.sideBtn}>
@@ -443,6 +444,7 @@ const AudioPlayerScreen = ({ route, navigation }: Props) => {
               {
                 backgroundColor: colors.card,
                 borderColor: colors.border,
+                flexDirection: dirRow(),
               },
             ]}>
             <SearchIcon size={16} color={colors.muted} />
@@ -466,7 +468,7 @@ const AudioPlayerScreen = ({ route, navigation }: Props) => {
           </View>
 
           {!!availableLanguages.length && (
-            <View style={styles.scriptLanguageRow}>
+            <View style={[styles.scriptLanguageRow, { flexDirection: dirRow() }]}>
               {availableLanguages.map(language => (
                 <TouchableOpacity
                   key={language}
@@ -507,7 +509,7 @@ const AudioPlayerScreen = ({ route, navigation }: Props) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  tabs: { flexDirection: 'row', borderBottomWidth: 1 },
+  tabs: { flexDirection: dirRow(), borderBottomWidth: 1 },
   tab: { flex: 1, alignItems: 'center', paddingVertical: 12 },
   tabLabel: { fontSize: 14, fontWeight: '600' },
   tabIndicator: { height: 3, width: '60%', borderRadius: 2, marginTop: 4 },
@@ -531,7 +533,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   languageRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     flexWrap: 'wrap',
     gap: 8,
     marginTop: 4,
@@ -546,12 +548,12 @@ const styles = StyleSheet.create({
   sliderContainer: { width: '100%' },
   slider: { width: '100%', height: 40 },
   timeRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     justifyContent: 'space-between',
     marginTop: -8,
   },
   timeText: { fontSize: 12 },
-  controls: { flexDirection: 'row', alignItems: 'center', gap: 32 },
+  controls: { flexDirection: dirRow(), alignItems: 'center', gap: 32 },
   sideBtn: { alignItems: 'center', gap: 2 },
   skipLabel: { fontSize: 11, fontWeight: '600' },
   playBtn: {
@@ -577,14 +579,14 @@ const styles = StyleSheet.create({
   progressFill: { height: 4, borderRadius: 2 },
   scriptSection: { flex: 1 },
   scriptLanguageRow: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     flexWrap: 'wrap',
     paddingHorizontal: 16,
     marginBottom: 8,
     gap: 8,
   },
   searchBar: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     margin: 16,
     borderRadius: 12,

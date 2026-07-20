@@ -1,0 +1,82 @@
+name: Backend Smoke CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: yakine_test
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/yakine_test
+      - name: Apply migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/yakine_test
+        run: |
+          npx prisma migrate deploy || true
+      - name: Build backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/yakine_test
+          JWT_SECRET: testsecret123
+          REFRESH_TOKEN_SECRET: refreshsecret123
+          REDIS_URL: redis://127.0.0.1:6379
+          SUPABASE_URL: ''
+          SUPABASE_SERVICE_KEY: ''
+          NODE_ENV: test
+        run: |
+          npm run build
+      - name: Start server
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/yakine_test
+          JWT_SECRET: testsecret123
+          REFRESH_TOKEN_SECRET: refreshsecret123
+          REDIS_URL: redis://127.0.0.1:6379
+          SUPABASE_URL: ''
+          SUPABASE_SERVICE_KEY: ''
+          NODE_ENV: test
+        run: |
+          node dist/server.js &
+          echo "Waiting for server to be healthy..."
+          for i in {1..30}; do
+            if curl -sf http://127.0.0.1:4000/health >/dev/null 2>&1; then
+              echo "Server healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server failed to become healthy" >&2
+          exit 1

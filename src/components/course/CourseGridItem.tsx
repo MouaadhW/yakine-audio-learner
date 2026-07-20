@@ -6,6 +6,7 @@ import { RootStackParamList } from '@/navigations';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { StyleSheet, TouchableHighlight, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import { DefaultStyles } from '../styles';
 import { Divider } from '../ui/Divider';
 import { Rating } from '../ui/Rating';
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   subtitleContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
   },
   title: {
@@ -132,13 +133,13 @@ const styles = StyleSheet.create({
     ...DefaultStyles.fonts.regular,
   },
   footerContainer: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 10,
     alignItems: 'center',
     padding: 16,
   },
   footerItem: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     gap: 4,
     alignItems: 'center',
   },

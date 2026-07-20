@@ -39,6 +39,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { dirRow } from '@/lib/rtl';
 import * as DocumentPicker from 'expo-document-picker';
 import { uploadAudioFile } from '@/lib/services/BacApi';
 
@@ -486,7 +487,7 @@ const LessonListScreen = ({ route, navigation }: Props) => {
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     borderRadius: 14,
     padding: 14,
@@ -520,7 +521,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 80,
     right: 20,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -538,7 +539,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    flexDirection: 'row',
+    flexDirection: dirRow(),
     alignItems: 'center',
     gap: 8,
   },
